@@ -86,7 +86,7 @@ def plot_data_in_batches(data_sets, batch_size, file_prefix="batch", save_path="
                                 facecolors='none', s=100)
 
                     # 标注点的文本信息
-                    if annotation_counter >= 10:
+                    if annotation_counter >= batch_size:
                         plt.text(data.index[k - 1], data['latLaneCenterOffset'].iloc[k - 1], str(annotation_counter),
                                  color='black', ha='center', va='center')
                     annotation_counter += 1  # 更新计数器
@@ -133,7 +133,7 @@ def plot_data_in_batches(data_sets, batch_size, file_prefix="batch", save_path="
                                 facecolors='none', s=100)
 
                     # 标注点的文本信息
-                    if annotation_counter >= 10:
+                    if annotation_counter >= remainder:
                         plt.text(data.index[k - 1], data['latLaneCenterOffset'].iloc[k - 1], str(annotation_counter),
                                  color='black', ha='center', va='center')
                     annotation_counter += 1  # 更新计数器
