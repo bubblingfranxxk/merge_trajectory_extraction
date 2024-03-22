@@ -319,14 +319,16 @@ class MergingExtractionClass(object):
             # 对tracks按照id分组，【curid是当前组内车辆id,curgroup当前组】
             for currentId, currentGroup in tracks[self.usedColumns].groupby("trackId"):
 
-                # 筛选掉没变道的轨迹，与出现时长小于3s的轨迹，以及没在汇入区的轨迹
-                if (currentGroup["laneChange"].unique() == 0).all() or len(currentGroup) < 3 / self.TIMESTEP or \
-                        not (np.any(np.isin(currentGroup["laneletId"].unique(), self.HDMdata["area1"]))):
-                    continue
                 currentGroup.sort_index(inplace=True)
 
                 # 得到整条汇入轨迹
                 self.tracksSelf = self.getMergeTracks(currentGroup)
+
+                # 筛选掉没变道的轨迹，与出现时长小于3s的轨迹，以及没在汇入区的轨迹
+                if (self.tracksSelf["laneChange"].unique() == 0).all() or len(currentGroup) < 3 / self.TIMESTEP or \
+                        not (np.any(np.isin(currentGroup["laneletId"].unique(), self.HDMdata["area1"]))):
+                    continue
+
                 maxIndex = max(self.tracksSelf["frame"])
                 minIndex = min(self.tracksSelf["frame"])
                 print(f"min: {minIndex}, max: {maxIndex}")
