@@ -91,16 +91,16 @@ def plot_data_in_batches(data_sets, batch_size, file_prefix="batch", save_path="
                                  color='black', ha='center', va='center')
                     annotation_counter += 1  # 更新计数器
 
-        # 添加图例
-        plt.legend()
+        # 设置图例位置
+        plt.legend(loc='upper left', bbox_to_anchor=(1, 1))
 
         # 添加标题和标签
         plt.title(f'Batch {i+1} - {start_idx+1} to {end_idx}')
         plt.xlabel('Standardized Index')
-        plt.ylabel('Y-axis')
+        plt.ylabel('laneoffset')    # 设置y轴标题
 
         # 保存图形到文件
-        plt.savefig(f'{save_path}/{file_prefix}_{i+1}.png')
+        plt.savefig(f'{save_path}/{file_prefix}_{i+1}.png', bbox_inches='tight')
 
         # 关闭图形
         plt.close()
@@ -138,16 +138,16 @@ def plot_data_in_batches(data_sets, batch_size, file_prefix="batch", save_path="
                                  color='black', ha='center', va='center')
                     annotation_counter += 1  # 更新计数器
 
-        # 添加图例
-        plt.legend()
+        # 设置图例位置
+        plt.legend(loc='upper left', bbox_to_anchor=(1, 1))
 
         # 添加标题和标签
         plt.title(f'Remaining Data - Batch {num_batches+1} - {start_idx+1} to {end_idx}')
         plt.xlabel('Standardized Index')
-        plt.ylabel('Y-axis')
+        plt.ylabel('laneoffset')    # 设置y轴标题
 
         # 保存图形到文件
-        plt.savefig(f'{save_path}/{file_prefix}_{num_batches+1}.png')
+        plt.savefig(f'{save_path}/{file_prefix}_{num_batches+1}.png', bbox_inches='tight')
 
         # 关闭图形
         plt.close()

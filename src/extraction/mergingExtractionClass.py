@@ -325,7 +325,7 @@ class MergingExtractionClass(object):
                 self.tracksSelf = self.getMergeTracks(currentGroup)
 
                 # 筛选掉没变道的轨迹，与出现时长小于3s的轨迹，以及没在汇入区的轨迹
-                if (self.tracksSelf["laneChange"].unique() == 0).all() or len(currentGroup) < 3 / self.TIMESTEP or \
+                if (currentGroup['laneChange'].unique() == 0).all() or len(currentGroup) < 3 / self.TIMESTEP or \
                         not (np.any(np.isin(currentGroup["laneletId"].unique(), self.HDMdata["area1"]))):
                     continue
 
