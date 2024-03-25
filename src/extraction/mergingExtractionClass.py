@@ -323,10 +323,13 @@ class MergingExtractionClass(object):
 
                 # 得到整条汇入轨迹
                 self.tracksSelf = self.getMergeTracks(currentGroup)
+                condition = (self.tracksSelf['laneChange'] == 1) & \
+                            (self.tracksSelf['latLaneCenterOffset'] > self.tracksSelf['latLaneCenterOffset'].shift(1))
 
-                # 筛选掉没变道的轨迹，与出现时长小于3s的轨迹，以及没在汇入区的轨迹
+                # 筛选掉没变道的轨迹，与出现时长小于3s的轨迹，没在汇入区的轨迹， 以及变道到道路边界【即向右变道】的轨迹
                 if (self.tracksSelf["laneChange"].unique() == 0).all() or len(currentGroup) < 3 / self.TIMESTEP or \
-                        not (np.any(np.isin(currentGroup["laneletId"].unique(), self.HDMdata["area1"]))):
+                        not np.any(np.isin(currentGroup["laneletId"].unique(), self.HDMdata["area1"])) or \
+                        any(condition):
                     continue
 
                 maxIndex = max(self.tracksSelf["frame"])
