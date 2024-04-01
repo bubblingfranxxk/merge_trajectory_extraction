@@ -63,6 +63,7 @@ class MergingExtractionClass(object):
                                          "rightLeadId",
                                          "rightRearId",
                                          "rightAlongsideId"]
+        self.goStraightVehicles = pd.DataFrame()
 
     def readCsvFile(self, record):
         PathTracksMeta = self.rootPath + r"\drone-dataset-tools-master\data\{}_tracksMeta.csv".format(str(record))
@@ -129,16 +130,8 @@ class MergingExtractionClass(object):
         # print(f"arealist: {arealist}")
         temp = tracks[tracks["laneletId"].isin(arealist)]
         return temp
-
     '''
     def matchSurrodingVehicles(self, tracksMeta, row):
-        if (False == row["MergingState"]) or (row["RouteClass"] == "mainline"):
-            return "None", "None", "None", \
-                   "None", "None", "None", \
-                   "None", "None", "None", \
-                   "None", "None", "None", \
-                   "None", "None", "None", \
-                   "None"
         trajectoryInfo = {}
         RearVehicleNumber = 0
         LeadVehicleNumber = 0
@@ -162,6 +155,12 @@ class MergingExtractionClass(object):
 
         for vehicleType in self.surroundingVehiclesLabel:
             vehicleIdListUnique = self.tracksSelf[vehicleType].unique()
+            otherVehicleThisFrame = self.otherVehicle[self.otherVehicle['trackId'] == row[vehicleType] &
+                                                      self.otherVehicle['frame'] == row['frame']]
+            if otherVehicleThisFrame.empty or row[vehicleType] == -1 or row[vehicleType] == "-999":
+                continue
+                
+
             for vehicleId in vehicleIdListUnique:
 
                 currentInfo = self.otherVehicle[(self.otherVehicle["trackId"] == vehicleId) &
@@ -320,29 +319,34 @@ class MergingExtractionClass(object):
             for currentId, currentGroup in tracks[self.usedColumns].groupby("trackId"):
 
                 currentGroup.sort_index(inplace=True)
+                if (currentGroup["laneChange"].unique() == 0).all():
+                    self.goStraightVehicles = pd.concat([self.goStraightVehicles, currentGroup], axis=0,
+                                                        ignore_index=True)
 
-                # 得到整条汇入轨迹
-                self.tracksSelf = self.getMergeTracks(currentGroup)
-                condition = (self.tracksSelf['laneChange'] == 1) & \
-                            (self.tracksSelf['latLaneCenterOffset'] > self.tracksSelf['latLaneCenterOffset'].shift(1))
+                # straightVehcileLocation2 = self.goStraightVehicles[(self.goStraightVehicles['recordingId'] <= 52) &
+                #                                                    (self.goStraightVehicles['recordingId'] >= 39)]
+                # print('answer: {}'.format(straightVehcileLocation2))
 
-                # 筛选掉没变道的轨迹，与出现时长小于3s的轨迹，没在汇入区的轨迹， 以及变道到道路边界【即向右变道】的轨迹
-                if (self.tracksSelf["laneChange"].unique() == 0).all() or len(currentGroup) < 3 / self.TIMESTEP or \
-                        not np.any(np.isin(currentGroup["laneletId"].unique(), self.HDMdata["area1"])) or \
-                        any(condition):
-                    continue
-
-                maxIndex = max(self.tracksSelf["frame"])
-                minIndex = min(self.tracksSelf["frame"])
-                print(f"min: {minIndex}, max: {maxIndex}")
-
-                test_offset.append(self.tracksSelf)
-
+                # # 得到整条汇入轨迹
+                # self.tracksSelf = self.getMergeTracks(currentGroup)
+                # condition = (self.tracksSelf['laneChange'] == 1) & \
+                #             (self.tracksSelf['latLaneCenterOffset'] > self.tracksSelf['latLaneCenterOffset'].shift(1))
+                #
+                # # 筛选掉没变道的轨迹，与出现时长小于3s的轨迹，没在汇入区的轨迹， 以及变道到道路边界【即向右变道】的轨迹
+                # if (self.tracksSelf["laneChange"].unique() == 0).all() or len(currentGroup) < 3 / self.TIMESTEP or \
+                #         not np.any(np.isin(currentGroup["laneletId"].unique(), self.HDMdata["area1"])) or \
+                #         any(condition):
+                #     continue
+                #
+                # maxIndex = max(self.tracksSelf["frame"])
+                # minIndex = min(self.tracksSelf["frame"])
+                # print(f"min: {minIndex}, max: {maxIndex}")
+                # test_offset.append(self.tracksSelf)
                 # self.save_to_csv(self.tracksSelf, record, currentId)
-
-                # 参考整条轨迹提取周围所有车轨迹
-                self.otherVehicle = tracks[(tracks["frame"] >= minIndex) &
-                                           (tracks["frame"] <= maxIndex)]
+                #
+                # # 参考整条轨迹提取周围所有车轨迹
+                # self.otherVehicle = tracks[(tracks["frame"] >= minIndex) &
+                #                            (tracks["frame"] <= maxIndex)]
                 # self.save_to_csv(self.otherVehicle, record, str(currentId) + "_others")
 
                 # self.tracksSelf[
@@ -352,6 +356,24 @@ class MergingExtractionClass(object):
                 #      "MergingType", "LeadVehicleId", "RearVehicleId",
                 #      "MinimumRearSpeed", "MinimumRearHeadway", "MinimumLeadSpeed", "MinimumLeadHeadway"
                 #      ]
-                # ] = self.tracksSelf.apply(lambda row: self.match)
+                # ] = self.tracksSelf.apply(lambda row: self.matchSurrodingVehicles(row, tracksMeta), axis=1,
+                #                           result_type='expand')
 
-            common.plot_data_in_batches(test_offset, 10, record, self.savePath)
+        straightVehcileLocation2 = self.goStraightVehicles[(self.goStraightVehicles['recordingId'] <= 52) &
+                                                           (self.goStraightVehicles['recordingId'] >= 39)]
+        straightVehcileLocation3 = self.goStraightVehicles[(self.goStraightVehicles['recordingId'] <= 60) &
+                                                           (self.goStraightVehicles['recordingId'] >= 53)]
+        straightVehcileLocation5 = self.goStraightVehicles[(self.goStraightVehicles['recordingId'] <= 77) &
+                                                           (self.goStraightVehicles['recordingId'] >= 73)]
+        straightVehcileLocation6 = self.goStraightVehicles[(self.goStraightVehicles['recordingId'] <= 92) &
+                                                           (self.goStraightVehicles['recordingId'] >= 78)]
+        thetaLocation2 = straightVehcileLocation2['heading'].mean()
+        thetaLocation3 = straightVehcileLocation3['heading'].mean()
+        thetaLocation5 = straightVehcileLocation5['heading'].mean()
+        thetaLocation6 = straightVehcileLocation6['heading'].mean()
+        print("location 2:{}".format(thetaLocation2))
+        print("location 3:{}".format(thetaLocation3))
+        print("location 5:{}".format(thetaLocation5))
+        print("location 6:{}".format(thetaLocation6))
+
+
