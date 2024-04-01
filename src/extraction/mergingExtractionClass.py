@@ -317,11 +317,13 @@ class MergingExtractionClass(object):
 
             # 对tracks按照id分组，【curid是当前组内车辆id,curgroup当前组】
             for currentId, currentGroup in tracks[self.usedColumns].groupby("trackId"):
-
                 currentGroup.sort_index(inplace=True)
-                if (currentGroup["laneChange"].unique() == 0).all():
-                    self.goStraightVehicles = pd.concat([self.goStraightVehicles, currentGroup], axis=0,
-                                                        ignore_index=True)
+                if (currentGroup["laneChange"].unique() == 0).all() and \
+                        currentGroup["laneletId"].isin(self.HDMdata["mainline"]).any():
+                    self.goStraightVehicles = \
+                        pd.concat([self.goStraightVehicles,
+                                   currentGroup[currentGroup["laneletId"].isin(self.HDMdata["mainline"])]], axis=0,
+                                  ignore_index=True)
 
                 # straightVehcileLocation2 = self.goStraightVehicles[(self.goStraightVehicles['recordingId'] <= 52) &
                 #                                                    (self.goStraightVehicles['recordingId'] >= 39)]
