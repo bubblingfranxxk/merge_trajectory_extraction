@@ -36,9 +36,26 @@ class MergingExtractionClass(object):
 
         self.HDMdata = None
         self.chosenLocation = None
+        self.laneChangeFrame = None
         self.tracksSelf = None
         self.weekday = None
         self.otherVehicle = None
+        self.leadVehicle = None  # 整个汇入过程中的前车
+        self.leadDeltaX = None
+        self.leadDeltaV = None
+        self.leadDeltaAcce = None
+        self.rearVehicle = None  # 整个汇入过程中的后车
+        self.rearDeltaX = None
+        self.rearDeltaV = None
+        self.rearDeltaAcce = None
+        self.leftleadVehicle = None  # 整个汇入过程中的侧前车
+        self.leftleadDeltaX = None
+        self.leftleadDeltaV = None
+        self.leftleadDeltaAcce = None
+        self.leftrearVehicle = None  # 整个汇入过程中的侧后车
+        self.leftrearDeltaX = None
+        self.leftrearDeltaV = None
+        self.leftrearDeltaAcce = None
         self.locationTotalMergingDistance = {
             "2": 160.32,
             "3": 200.52,
@@ -59,10 +76,7 @@ class MergingExtractionClass(object):
                                          "rearId",
                                          "leftLeadId",
                                          "leftRearId",
-                                         "leftAlongsideId",
-                                         "rightLeadId",
-                                         "rightRearId",
-                                         "rightAlongsideId"]
+                                         "leftAlongsideId"]
 
     def readCsvFile(self, record):
         PathTracksMeta = self.rootPath + r"\drone-dataset-tools-master\data\{}_tracksMeta.csv".format(str(record))
@@ -130,15 +144,7 @@ class MergingExtractionClass(object):
         temp = tracks[tracks["laneletId"].isin(arealist)]
         return temp
 
-    '''
-    def matchSurrodingVehicles(self, tracksMeta, row):
-        if (False == row["MergingState"]) or (row["RouteClass"] == "mainline"):
-            return "None", "None", "None", \
-                   "None", "None", "None", \
-                   "None", "None", "None", \
-                   "None", "None", "None", \
-                   "None", "None", "None", \
-                   "None"
+    def matchSurroundingVehicles(self, tracksMeta, row):
         trajectoryInfo = {}
         RearVehicleNumber = 0
         LeadVehicleNumber = 0
@@ -162,6 +168,41 @@ class MergingExtractionClass(object):
 
         for vehicleType in self.surroundingVehiclesLabel:
             vehicleIdListUnique = self.tracksSelf[vehicleType].unique()
+            otherVehicleThisFrame = self.otherVehicle[self.otherVehicle['trackId'] == row[vehicleType] &
+                                                      self.otherVehicle['frame'] == row['frame']]
+            if otherVehicleThisFrame.empty or row[vehicleType] == -1 or row[vehicleType] == "-999":
+                continue
+
+            distance = np.sqrt(np.square(row['xCenter'] - otherVehicleThisFrame['xCenter']) + np.square(
+                row['yCenter'] - otherVehicleThisFrame['yCenter']))
+            speed = (row['xVelocity'] * otherVehicleThisFrame['xVelocity'])
+            if distance > self.DISTANCE or speed < 0:
+                continue
+
+            curLanelet2Id = [common.processLaneletData(x, "int") for x in otherVehicleThisFrame["laneletId"].unique()]
+            if len(set(curLanelet2Id) & set(self.HDMdata["-1"])) != 0:
+                positionLabel = "on -1"
+            elif len(set(curLanelet2Id) & set(self.HDMdata["-2"])) != 0:
+                positionLabel = "on -2"
+            elif len(set(curLanelet2Id) & set(self.HDMdata["-3"])) != 0:
+                positionLabel = "on -3"
+            elif len(set(curLanelet2Id) & set(self.HDMdata["entry"])) != 0:
+                positionLabel = "on entry"
+            elif len(set(curLanelet2Id) & set(self.HDMdata["onramp"])) != 0:
+                positionLabel = "on onramp"
+            else:
+                logger.warning("Can't recognize other vehicle position label.")
+                continue
+
+            if (row["location"] == "2" or row["location"] == "3" or row["location"] == "5") \
+                    and positionLabel != "on -2":
+                continue
+            elif row["location"] == "6" and positionLabel != "on -3":
+                continue
+
+            status = "Exist"
+
+
             for vehicleId in vehicleIdListUnique:
 
                 currentInfo = self.otherVehicle[(self.otherVehicle["trackId"] == vehicleId) &
@@ -286,11 +327,10 @@ class MergingExtractionClass(object):
                    MinimumLeadDistance, MinimumLeadStatus, MinimumLeadClass, \
                    MergingType, LeadVehicleId, RearVehicleId, \
                    RearVehicleSpeed, RearHeadway, LeadVehicleSpeed, LeadHeadway
-    '''
 
     def run(self):
-        # self.create_output_folder(self.rootPath, 'output')
-        self.create_output_folder(self.rootPath, 'asset')
+        self.create_output_folder(self.rootPath, 'output')
+        # self.create_output_folder(self.rootPath, 'asset')
         data = pd.DataFrame()
         locationTemp = [self.recordingMapToLocation[key] for key in self.location
                         if key in self.recordingMapToLocation]
@@ -298,7 +338,6 @@ class MergingExtractionClass(object):
         self.chosenLocation = [i for sublist in locationTemp for i in sublist]
 
         for record in range(0, 93):
-            test_offset = []
             if record not in self.chosenLocation:
                 continue
 
@@ -314,7 +353,7 @@ class MergingExtractionClass(object):
                 lambda row: common.processLaneletData(row["latLaneCenterOffset"], "float"), axis=1)
             tracks["laneletId"] = tracks.apply(lambda row: common.processLaneletData(row["laneletId"], "int"), axis=1)
             tracks.set_index(keys="frame", inplace=True, drop=False)
-            # self.save_to_csv(tracks, record)
+            self.save_to_csv(tracks, record)
 
             # 对tracks按照id分组，【curid是当前组内车辆id,curgroup当前组】
             for currentId, currentGroup in tracks[self.usedColumns].groupby("trackId"):
@@ -331,19 +370,19 @@ class MergingExtractionClass(object):
                         not np.any(np.isin(currentGroup["laneletId"].unique(), self.HDMdata["area1"])) or \
                         any(condition):
                     continue
-
+                self.laneChangeFrame = self.tracksSelf[self.tracksSelf['laneChange'] == 1]
+                print("lanechange Frame:")
+                print(self.laneChangeFrame)
                 maxIndex = max(self.tracksSelf["frame"])
                 minIndex = min(self.tracksSelf["frame"])
                 print(f"min: {minIndex}, max: {maxIndex}")
 
-                test_offset.append(self.tracksSelf)
-
-                # self.save_to_csv(self.tracksSelf, record, currentId)
+                self.save_to_csv(self.tracksSelf, record, currentId)
 
                 # 参考整条轨迹提取周围所有车轨迹
                 self.otherVehicle = tracks[(tracks["frame"] >= minIndex) &
                                            (tracks["frame"] <= maxIndex)]
-                # self.save_to_csv(self.otherVehicle, record, str(currentId) + "_others")
+                self.save_to_csv(self.otherVehicle, record, str(currentId) + "_others")
 
                 # self.tracksSelf[
                 #     ["SurroundingVehiclesInfo", "RearVehicleNumber", "MinimumRearDistance",
@@ -354,4 +393,3 @@ class MergingExtractionClass(object):
                 #      ]
                 # ] = self.tracksSelf.apply(lambda row: self.match)
 
-            common.plot_data_in_batches(test_offset, 10, record, self.savePath)
