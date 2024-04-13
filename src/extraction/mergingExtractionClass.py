@@ -3,7 +3,7 @@
 # @Author : 王砚轩
 # @File : mergingExtractionClass.py
 # @Software: PyCharm
-
+import math
 import os
 import numpy as np
 import pandas as pd
@@ -56,6 +56,10 @@ class MergingExtractionClass(object):
         self.leftrearDeltaX = None
         self.leftrearDeltaV = None
         self.leftrearDeltaAcce = None
+        self.leftalongsideVehicle = None  # 整个汇入过程中的侧车
+        self.leftalongsideDeltaX = None
+        self.leftalongsideDeltaV = None
+        self.leftalongsideDeltaAcce = None
         self.locationTotalMergingDistance = {
             "2": 160.32,
             "3": 200.52,
@@ -144,38 +148,43 @@ class MergingExtractionClass(object):
         temp = tracks[tracks["laneletId"].isin(arealist)]
         return temp
 
-    def matchSurroundingVehicles(self, tracksMeta, row):
+    def matchSurroundingVehicles(self, row, tracksMeta):
         trajectoryInfo = {}
-        RearVehicleNumber = 0
-        LeadVehicleNumber = 0
-        MinimumRearDistance = 999
-        MinimumLeadDistance = 999
-
-        MinimumRearStatus = "None"
-        MinimumLeadStatus = "None"
-        MinimumRearClass = "None"
-        MinimumLeadClass = "None"
-        MergingType = "None"
-        status = "None"
-
-        RearVehicleSpeed = 999
-        LeadVehicleSpeed = 999
+        self.rearVehicle = 0
+        self.rearDeltaX = 999
+        self.rearDeltaV = 999
+        self.rearDeltaAcce = 999
+        self.leadVehicle = 0
+        self.leadDeltaX = 999
+        self.leadDeltaV = 999
+        self.leadDeltaAcce = 999
+        self.leftleadVehicle = 0
+        self.leftleadDeltaX = 999
+        self.leftleadDeltaV = 999
+        self.leftleadDeltaAcce = 999
+        self.leftrearVehicle = 0
+        self.leftrearDeltaX = 999
+        self.leftrearDeltaV = 999
+        self.leftrearDeltaAcce = 999
+        self.leftalongsideVehicle = 0
+        self.leftalongsideDeltaX = 999
+        self.leftalongsideDeltaV = 999
+        self.leftalongsideDeltaAcce = 999
         RearHeadway = 999
         LeadHeadway = 999
-
-        LeadVehicleId = "None"
-        RearVehicleId = "None"
+        status = "None"
 
         for vehicleType in self.surroundingVehiclesLabel:
-            vehicleIdListUnique = self.tracksSelf[vehicleType].unique()
-            otherVehicleThisFrame = self.otherVehicle[self.otherVehicle['trackId'] == row[vehicleType] &
-                                                      self.otherVehicle['frame'] == row['frame']]
+            # print(vehicleType)
+            otherVehicleThisFrame = self.otherVehicle[(self.otherVehicle['trackId'] == row[vehicleType]) &
+                                                      (self.otherVehicle['frame'] == row['frame'])]
             if otherVehicleThisFrame.empty or row[vehicleType] == -1 or row[vehicleType] == "-999":
                 continue
-
-            distance = np.sqrt(np.square(row['xCenter'] - otherVehicleThisFrame['xCenter']) + np.square(
-                row['yCenter'] - otherVehicleThisFrame['yCenter']))
-            speed = (row['xVelocity'] * otherVehicleThisFrame['xVelocity'])
+            # print('xcenter:')
+            # print(row['xCenter'])
+            distance = np.sqrt(np.square(row['xCenter'] - otherVehicleThisFrame['xCenter'].values[0]) + np.square(
+                row['yCenter'] - otherVehicleThisFrame['yCenter'].values[0]))
+            speed = (row['xVelocity'] * otherVehicleThisFrame['xVelocity'].values[0])
             if distance > self.DISTANCE or speed < 0:
                 continue
 
@@ -194,139 +203,66 @@ class MergingExtractionClass(object):
                 logger.warning("Can't recognize other vehicle position label.")
                 continue
 
-            if (row["location"] == "2" or row["location"] == "3" or row["location"] == "5") \
+            if (row["recordingId"] in self.recordingMapToLocation["2"] or row["recordingId"] in self.
+                    recordingMapToLocation["3"] or row["recordingId"] in self.recordingMapToLocation["5"]) \
                     and positionLabel != "on -2":
                 continue
-            elif row["location"] == "6" and positionLabel != "on -3":
+            elif row["recordingId"] in self.recordingMapToLocation["6"] and positionLabel != "on -3":
                 continue
 
             status = "Exist"
+            theta = math.radians(self.HDMdata["heading"])
+            deltaV = -(otherVehicleThisFrame["xVelocity"].values[0] * math.sin(theta) + otherVehicleThisFrame[
+                "yVelocity"].values[0] * math.cos(theta)) + row["xVelocity"] * math.sin(theta) + row["yVelocity"] * \
+                math.cos(theta)
+            deltaAcce = -(otherVehicleThisFrame["xAcceleration"].values[0] * math.sin(theta) + otherVehicleThisFrame[
+                    "yAcceleration"].values[0] * math.cos(theta)) + row["xAcceleration"] * math.sin(theta) + row[
+                                         "yAcceleration"] * math.cos(theta)
+            thisFrame = self.laneChangeFrame["frame"].values[0]
+            if vehicleType == "leadId":
+                self.leadVehicle = row[vehicleType]
+                self.leadDeltaX = distance
+                self.leadDeltaV = deltaV
+                self.leadDeltaAcce = deltaAcce
+            elif vehicleType == "rearId":
+                self.rearVehicle = row[vehicleType]
+                self.rearDeltaX = distance
+                self.rearDeltaV = deltaV
+                self.rearDeltaAcce = deltaAcce
+            elif row["frame"] < thisFrame and vehicleType == "leftLeadId":
+                self.leftleadVehicle = row[vehicleType]
+                self.leftleadDeltaX = distance
+                self.leftleadDeltaV = deltaV
+                self.leftleadDeltaAcce = deltaAcce
+            elif row["frame"] < thisFrame and vehicleType == "leftRearId":
+                self.leftrearVehicle = row[vehicleType]
+                self.leftrearDeltaX = distance
+                self.leftrearDeltaV = deltaV
+                self.leftrearDeltaAcce = deltaAcce
+            elif row["frame"] < thisFrame and vehicleType == "leftAlongsideId":
+                self.leftalongsideVehicle = row[vehicleType]
+                self.leftalongsideDeltaX = distance
+                self.leftalongsideDeltaV = deltaV
+                self.leftalongsideDeltaAcce = deltaAcce
 
+            trajectoryInfo[str(vehicleType) + ":" + str(row[vehicleType])] = {
+                # "id": otherVehicleThisFrame["trackId"],
+                "position": positionLabel,
+                # "lonVelocity": otherVehicleThisFrame["lonVelocity"].values[0],
+                # "latVelocity": otherVehicleThisFrame["latVelocity"].values[0],
+                # "lonAcceleration": otherVehicleThisFrame["lonAcceleration"].values[0],
+                # "latAcceleration": otherVehicleThisFrame["latAcceleration"].values[0],
+                # "distance": distance,
+                "class":
+                    tracksMeta[tracksMeta["trackId"] == otherVehicleThisFrame["trackId"].values[0]]["class"].values[0],
+            }
 
-            for vehicleId in vehicleIdListUnique:
-
-                currentInfo = self.otherVehicle[(self.otherVehicle["trackId"] == vehicleId) &
-                                                (self.otherVehicle["frame"] == row["frame"])]
-                if vehicleId == -1 or vehicleId == "-999" or currentInfo.empty:
-                    continue
-
-                distance = np.sqrt(np.square(row['xCenter'] - currentInfo['xCenter']) + np.square(
-                    row['yCenter'] - currentInfo['yCenter']))
-                speed = (row['xVelocity'] * currentInfo['xVelocity'])
-
-                if distance > self.DISTANCE or speed < 0:
-                    continue
-
-                cursurrounidngrouteclass = self.checkVehicleRouteClass(
-                    self.tracksBeforeMerge[self.tracksBeforeMerge["trackId"] == vehicleId])
-                curLanelet2Id = [common.processLaneletData(x, "int") for x in curinfotail["laneletId"].unique()]
-
-                if len(set(curLanelet2Id) & set(self.HDMdata["-1"])) != 0:
-                    positionLabel = "on -1"
-                elif len(set(curLanelet2Id) & set(self.HDMdata["-2"])) != 0:
-                    positionLabel = "on -2"
-                elif len(set(curLanelet2Id) & set(self.HDMdata["-3"])) != 0:
-                    positionLabel = "on -3"
-                elif len(set(curLanelet2Id) & set(self.HDMdata["entry"])) != 0:
-                    positionLabel = "on entry"
-                elif len(set(curLanelet2Id) & set(self.HDMdata["onramp"])) != 0:
-                    positionLabel = "on onramp"
-                else:
-                    continue
-
-                if (row["location"] == "2" or row["location"] == "3" or row[
-                    "location"] == "5") and positionLabel != "on -2":
-                    continue
-                elif (row["location"] == "6") and positionLabel != "on -3":
-                    continue
-
-                # 有点乱，有点转懵了
-                if vehicleId in self.alongsidetolead and vehicleType in ["leadId", "leftLeadId",
-                                                                         "rightLeadId"] and vehicleId in self.tailLeadVehicles:
-                    status = "alongside to lead"
-
-                if vehicleId in self.alongsidetorear and vehicleType in ["rearId", "leftRearId",
-                                                                         "rightRearId"] and vehicleId in self.tailRearVehicles:
-                    status = "alongside to rear"
-
-                if vehicleId in self.reartofront:
-                    # 没整明白想干嘛？
-                    leadvehicleFrame = np.append(np.argwhere(self.leadvehicles == vehicleId).flatten(),
-                                                 np.argwhere(self.leftleadvehicles == vehicleId).flatten())
-                    rearvehicleFrame = np.append(np.argwhere(self.rearvehicles == vehicleId).flatten(),
-                                                 np.argwhere(self.leftRearvehicles == vehicleId).flatten())
-
-                    if vehicleType in ["leadId", "leftLeadId", "rightLeadId"] and min(leadvehicleFrame) > max(
-                            rearvehicleFrame) and vehicleId in self.tailLeadVehicles:
-                        status = "rear to lead"
-                    elif vehicleType in ["rearId", "leftRearId", "rightRearId"] and max(leadvehicleFrame) < min(
-                            rearvehicleFrame) and vehicleId in self.tailRearVehicles:
-                        status = "lead to rear"
-                    else:
-                        status = "WRONG"
-                else:
-                    status = "Exist"
-
-                if vehicleType in ["rearId", "leftRearId", "rightRearId"] and vehicleId in self.tailRearVehicles:
-                    if distance < MinimumRearDistance:
-                        MinimumRearDistance = distance
-                        MinimumRearStatus = status
-                        MinimumRearClass = \
-                            tracksmeta[tracksmeta["trackId"] == curinfotail["trackId"].values[0]]["class"].values[0]
-                        RearVehicleId = vehicleId
-                        RearVehicleSpeed = np.sqrt(
-                            np.square(curinfotail['xVelocity'].mean()) + np.square(curinfotail['yVelocity'].mean()))
-                        RearHeadway = MinimumRearDistance / RearVehicleSpeed
-
-                elif vehicleType in ["leadId", "leftLeadId", "rightLeadId"] and vehicleId in self.tailLeadVehicles:
-                    if distance < MinimumLeadDistance:
-                        MinimumLeadDistance = distance
-                        MinimumLeadStatus = status
-                        MinimumLeadClass = \
-                            tracksmeta[tracksmeta["trackId"] == curinfotail["trackId"].values[0]]["class"].values[0]
-                        LeadVehicleId = vehicleId
-                        LeadVehicleSpeed = np.sqrt(np.square(row['xVelocity']) + np.square(row['xVelocity']))
-                        LeadHeadway = MinimumLeadDistance / LeadVehicleSpeed
-
-                trajectoryInfo[str(vehicleType) + ":" + str(vehicleId)] = {
-                    "id": curinfotail["trackId"].values.mean(),
-                    "routeclass": cursurrounidngrouteclass,
-                    "position": positionLabel,
-                    "sidestatus": status,
-                    "lonVelocity": curinfotail["lonVelocity"].values.mean(),
-                    "latVelocity": curinfotail["latVelocity"].values.mean(),
-                    "lonAcceleration": curinfotail["lonAcceleration"].values.mean(),
-                    "latAcceleration": curinfotail["latAcceleration"].values.mean(),
-                    "distance": distance,
-                    "class":
-                        tracksmeta[tracksmeta["trackId"] == curinfotail["trackId"].values[0]]["class"].values[
-                            0],
-                }
-
-            surroudingInfo = {"vehicleNums": len(trajectoryInfo.keys()), "trajectory": trajectoryInfo}
-
-            if MinimumRearStatus == "None" and MinimumLeadStatus == "None":
-                MergingType = "A"
-            elif MinimumRearStatus == "None" and MinimumLeadStatus == "Exist":
-                MergingType = "B"
-            elif MinimumRearStatus == "None" and MinimumLeadStatus == "rear to lead":
-                MergingType = "C"
-            elif MinimumRearStatus == "Exist" and MinimumLeadStatus == "None":
-                MergingType = "D"
-            elif MinimumRearStatus == "Exist" and MinimumLeadStatus == "Exist":
-                MergingType = "E"
-            elif MinimumRearStatus == "Exist" and MinimumLeadStatus == "rear to lead":
-                MergingType = "F"
-            elif MinimumRearStatus == "lead to rear" and MinimumLeadStatus == "None":
-                MergingType = "G"
-            elif MinimumRearStatus == "lead to rear" and MinimumLeadStatus == "Exist":
-                MergingType = "H"
-
-            return surroudingInfo, RearVehicleNumber, MinimumRearDistance, \
-                   MinimumRearStatus, MinimumRearClass, LeadVehicleNumber, \
-                   MinimumLeadDistance, MinimumLeadStatus, MinimumLeadClass, \
-                   MergingType, LeadVehicleId, RearVehicleId, \
-                   RearVehicleSpeed, RearHeadway, LeadVehicleSpeed, LeadHeadway
+        surroundingInfo = {"vehicleNums": len(trajectoryInfo.keys()), "trajectory": trajectoryInfo}
+        return surroundingInfo, self.rearVehicle, self.rearDeltaX, self.rearDeltaV, self.rearDeltaAcce, \
+            self.leadVehicle, self.leadDeltaX, self.leadDeltaV, self.leadDeltaAcce, self.leftrearVehicle, \
+            self.leftrearDeltaX, self.leftrearDeltaV, self.leftrearDeltaAcce, self.leftleadVehicle, \
+            self.leftleadDeltaX, self.leftleadDeltaV, self.leftleadDeltaAcce, self.leftalongsideVehicle, \
+            self.leftalongsideDeltaX, self.leftalongsideDeltaV, self.leftalongsideDeltaAcce
 
     def run(self):
         self.create_output_folder(self.rootPath, 'output')
@@ -353,7 +289,6 @@ class MergingExtractionClass(object):
                 lambda row: common.processLaneletData(row["latLaneCenterOffset"], "float"), axis=1)
             tracks["laneletId"] = tracks.apply(lambda row: common.processLaneletData(row["laneletId"], "int"), axis=1)
             tracks.set_index(keys="frame", inplace=True, drop=False)
-            self.save_to_csv(tracks, record)
 
             # 对tracks按照id分组，【curid是当前组内车辆id,curgroup当前组】
             for currentId, currentGroup in tracks[self.usedColumns].groupby("trackId"):
@@ -371,25 +306,30 @@ class MergingExtractionClass(object):
                         any(condition):
                     continue
                 self.laneChangeFrame = self.tracksSelf[self.tracksSelf['laneChange'] == 1]
-                print("lanechange Frame:")
-                print(self.laneChangeFrame)
+                # print("lanechange Frame:")
+                # print(self.laneChangeFrame["frame"].values[0])
                 maxIndex = max(self.tracksSelf["frame"])
                 minIndex = min(self.tracksSelf["frame"])
-                print(f"min: {minIndex}, max: {maxIndex}")
+                # print(f"min: {minIndex}, max: {maxIndex}")
 
-                self.save_to_csv(self.tracksSelf, record, currentId)
+                # self.save_to_csv(self.tracksSelf, record, currentId)
 
                 # 参考整条轨迹提取周围所有车轨迹
                 self.otherVehicle = tracks[(tracks["frame"] >= minIndex) &
                                            (tracks["frame"] <= maxIndex)]
                 self.save_to_csv(self.otherVehicle, record, str(currentId) + "_others")
 
-                # self.tracksSelf[
-                #     ["SurroundingVehiclesInfo", "RearVehicleNumber", "MinimumRearDistance",
-                #      "MinimumRearStatus", "MinimumRearClass", "LeadVehicleNumber",
-                #      "MinimumLeadDistance", "MinimumLeadStatus", "MinimumLeadClass",
-                #      "MergingType", "LeadVehicleId", "RearVehicleId",
-                #      "MinimumRearSpeed", "MinimumRearHeadway", "MinimumLeadSpeed", "MinimumLeadHeadway"
-                #      ]
-                # ] = self.tracksSelf.apply(lambda row: self.match)
-
+                tracksSelf_c = self.tracksSelf.copy()
+                tracksSelf_c[
+                    ["SurroundingVehiclesInfo", "RearVehicleId", "RearDistance", "RearDeltaV", "RearDeltaAcceleration",
+                     "LeadVehicleId", "LeadDistance", "LeadDeltaV", "LeadDeltaAcceleration",
+                     "LeftRearVehicleId", "LeftRearDistance", "LeftRearDeltaV", "LeftRearDeltaAcceleration",
+                     "LeftLeadVehicleId", "LeftLeadDistance", "LeftLeadDeltaV", "LeftLeadDeltaAcceleration",
+                     "LeftAlongsideVehicleId", "LeftAlongsideDistance", "LeftAlongsideDeltaV",
+                     "LeftAlongsideDeltaAcceleration"
+                     ]
+                ] = tracksSelf_c.apply(lambda row: self.matchSurroundingVehicles(row, tracksMeta), axis=1,
+                                       result_type="expand")
+                self.tracksSelf = tracksSelf_c.copy()
+                # print(self.tracksSelf)
+                self.save_to_csv(self.tracksSelf, record, currentId)
