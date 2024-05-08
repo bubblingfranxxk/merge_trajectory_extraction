@@ -18,7 +18,8 @@ def createArgs():
     cs = argparse.ArgumentParser(description="Dataset Tracks Visualizer")
 
     cs.add_argument('--distance_threshold', default=200,
-                    help="distance threshold to match the surrounding vehicles.", type=int)
+                    help="distance threshold to match the surrounding vehicles.",
+                    type=int)
 
     cs.add_argument('--lookback', default=3,
                     help="this variable is set is to ensure the accuracy of the extracted trajectory.",
@@ -29,7 +30,12 @@ def createArgs():
                     type=int)
 
     cs.add_argument('--location_set', default=['2', '3', '5', '6'],
-                    help="location id set", type=list)
+                    help="location id set",
+                    type=list)
+
+    cs.add_argument('--save_mode', default='test',
+                    help="-test means output document in output, -release means output document in result",
+                    type=str)
 
     return vars(cs.parse_args())
 

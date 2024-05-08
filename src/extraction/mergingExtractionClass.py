@@ -14,6 +14,7 @@ import shutil
 import matplotlib.pyplot as plt
 
 
+
 class MergingExtractionClass(object):
     def __init__(self, config):
         self.config = config
@@ -21,6 +22,7 @@ class MergingExtractionClass(object):
         self.LOOKBACK = config["lookback"]
         self.DISTANCE = config["distance_threshold"]
         self.location = config["location_set"]
+        self.savemode = config["savemode"]
 
         self.rootPath = os.path.abspath('../../')
         self.savePath = os.path.abspath('../../') + "/result/"
@@ -80,6 +82,10 @@ class MergingExtractionClass(object):
         self.leftalongsideTTC_V1 = None
         self.leftalongsideTTC_V2 = None
         self.leftalongsideTTC_V3 = None
+
+        # TTC-V3的系数
+        self.co_a = 1.5
+        self.co_b = 1.2
 
         self.locationTotalMergingDistance = {
             "2": 160.32,
@@ -279,6 +285,7 @@ class MergingExtractionClass(object):
                 self.leadDeltaAcce = deltaAcce
                 if self.leadVehicle and self.leadDeltaV > 0:
                     self.leadTTC_V2 = self.getTTC_V2(row, otherVehicleMeta, otherVehicleThisFrame)
+                    self.leadTTC_V3 = self.getTTC_V3(row, otherVehicleMeta, otherVehicleThisFrame)
             elif vehicleType == "rearId":
                 self.rearVehicle = row[vehicleType]
                 self.rearDeltaX = distance
@@ -286,6 +293,7 @@ class MergingExtractionClass(object):
                 self.rearDeltaAcce = deltaAcce
                 if self.rearVehicle and self.rearDeltaV < 0:
                     self.rearTTC_V2 = self.getTTC_V2(row, otherVehicleMeta, otherVehicleThisFrame)
+                    self.rearTTC_V3 = self.getTTC_V3(row, otherVehicleMeta, otherVehicleThisFrame)
             elif row["frame"] < thisFrame and vehicleType == "leftLeadId":
                 self.leftleadVehicle = row[vehicleType]
                 self.leftleadDeltaX = distance
@@ -293,6 +301,7 @@ class MergingExtractionClass(object):
                 self.leftleadDeltaAcce = deltaAcce
                 if self.leftleadVehicle and self.leftleadDeltaV > 0:
                     self.leftleadTTC_V2 = self.getTTC_V2(row, otherVehicleMeta, otherVehicleThisFrame)
+                    self.leftleadTTC_V3 = self.getTTC_V3(row, otherVehicleMeta, otherVehicleThisFrame)
             elif row["frame"] < thisFrame and vehicleType == "leftRearId":
                 self.leftrearVehicle = row[vehicleType]
                 self.leftrearDeltaX = distance
@@ -300,6 +309,7 @@ class MergingExtractionClass(object):
                 self.leftrearDeltaAcce = deltaAcce
                 if self.leftrearVehicle and self.leftrearDeltaV < 0:
                     self.leftrearTTC_V2 = self.getTTC_V2(row, otherVehicleMeta, otherVehicleThisFrame)
+                    self.leftrearTTC_V3 = self.getTTC_V3(row, otherVehicleMeta, otherVehicleThisFrame)
             elif row["frame"] < thisFrame and vehicleType == "leftAlongsideId":
                 self.leftalongsideVehicle = row[vehicleType]
                 self.leftalongsideDeltaX = distance
@@ -307,6 +317,7 @@ class MergingExtractionClass(object):
                 self.leftalongsideDeltaAcce = deltaAcce
                 if self.leftalongsideVehicle:
                     self.leftalongsideTTC_V2 = self.getTTC_V2(row, otherVehicleMeta, otherVehicleThisFrame)
+                    self.leftalongsideTTC_V3 = self.getTTC_V3(row, otherVehicleMeta, otherVehicleThisFrame)
 
             trajectoryInfo[str(vehicleType) + ":" + str(row[vehicleType])] = {
                 # "id": otherVehicleThisFrame["trackId"],
@@ -323,14 +334,15 @@ class MergingExtractionClass(object):
 
         surroundingInfo = {"vehicleNums": len(trajectoryInfo.keys()), "trajectory": trajectoryInfo}
         return surroundingInfo, self.rearVehicle, self.rearDeltaX, self.rearDeltaV, self.rearDeltaAcce, \
-            self.rearTTC_V1, self.rearTTC_V2, \
+            self.rearTTC_V1, self.rearTTC_V2, self.rearTTC_V3, \
             self.leadVehicle, self.leadDeltaX, self.leadDeltaV, self.leadDeltaAcce, self.leadTTC_V1, self.leadTTC_V2, \
+            self.leadTTC_V3, \
             self.leftrearVehicle, self.leftrearDeltaX, self.leftrearDeltaV, self.leftrearDeltaAcce, \
-            self.leftrearTTC_V1, self.leftrearTTC_V2, \
+            self.leftrearTTC_V1, self.leftrearTTC_V2, self.leftrearTTC_V3, \
             self.leftleadVehicle, self.leftleadDeltaX, self.leftleadDeltaV, self.leftleadDeltaAcce, \
-            self.leftleadTTC_V1, self.leftleadTTC_V2, \
+            self.leftleadTTC_V1, self.leftleadTTC_V2, self.leftrearTTC_V3, \
             self.leftalongsideVehicle, self.leftalongsideDeltaX, self.leftalongsideDeltaV, \
-            self.leftalongsideDeltaAcce, self.leftalongsideTTC_V1, self.leftalongsideTTC_V2
+            self.leftalongsideDeltaAcce, self.leftalongsideTTC_V1, self.leftalongsideTTC_V2, self.leftalongsideTTC_V3
 
     def getTTC_V1(self):
         if self.leadVehicle and self.leadDeltaV > 0:
@@ -459,10 +471,34 @@ class MergingExtractionClass(object):
         else:
             return -1
 
+    def getTTC_V3(self, data, otherMeta, otherVehicleThisFrame):
+        heading = math.radians(data['heading'])
+        other_heading = math.radians(otherVehicleThisFrame['heading'])
+        a1 = self.co_a * data['length'] * 0.5
+        b1 = self.co_b * data['width'] * 0.5
+        x1 = data['xCenter']
+        y1 = data['yCenter']
+        vx = otherVehicleThisFrame['xVelocity'].values[0] - data['xVelocity']
+        vy = otherVehicleThisFrame['yVelocity'].values[0] - data['yVelocity']
+        a2 = self.co_a * otherVehicleThisFrame['length'].values[0] * 0.5
+        b2 = self.co_b * otherVehicleThisFrame['width'].values[0] * 0.5
+        x2 = otherVehicleThisFrame['xCenter'].values[0]
+        y2 = otherVehicleThisFrame['yCenter'].values[0]
+
+        result = common.ellipses_tangent_time(a1, b1, heading, x1, y1, vx, vy, a2, b2, other_heading, x2, y2)
+        if result is not None:
+            t_solution, xt, yt = result
+            return t_solution
+
     def run(self):
-        self.create_output_folder(self.rootPath, 'output')
-        self.create_output_folder(self.rootPath, 'result')
+        if self.savemode == 'test':
+            self.create_output_folder(self.rootPath, 'output')
+            path = self.rootPath+"/output/"
+        else:
+            self.create_output_folder(self.rootPath, 'result')
+            path = self.savePath
         # self.create_output_folder(self.rootPath, 'asset')
+
         locationTemp = [self.recordingMapToLocation[key] for key in self.location
                         if key in self.recordingMapToLocation]
 
@@ -512,25 +548,26 @@ class MergingExtractionClass(object):
                 # 参考整条轨迹提取周围所有车轨迹
                 self.otherVehicle = tracks[(tracks["frame"] >= minIndex) &
                                            (tracks["frame"] <= maxIndex)]
-                self.save_to_csv(self.otherVehicle, self.savePath, record, str(currentId) + "_others")
+                self.save_to_csv(self.otherVehicle, path, record, str(currentId) + "_others")
 
                 tracksSelf_c = self.tracksSelf.copy()
                 tracksSelf_c[
                     ["SurroundingVehiclesInfo",
                      "RearVehicleId", "RearDistance", "RearDeltaV", "RearDeltaAcceleration", "RearTTCRaw1",
-                     "RearTTCRaw2",
+                     "RearTTCRaw2", "RearTTCRaw3",
                      "LeadVehicleId", "LeadDistance", "LeadDeltaV", "LeadDeltaAcceleration", "LeadTTCRaw1",
-                     "LeadTTCRaw2",
+                     "LeadTTCRaw2", "LeadTTCRaw3",
                      "LeftRearVehicleId", "LeftRearDistance", "LeftRearDeltaV", "LeftRearDeltaAcceleration",
-                     "LeftRearTTCRaw1", "LeadRearTTCRaw2",
+                     "LeftRearTTCRaw1", "LeadRearTTCRaw2", "LeftRearTTCRaw3",
                      "LeftLeadVehicleId", "LeftLeadDistance", "LeftLeadDeltaV", "LeftLeadDeltaAcceleration",
-                     "LeftLeadTTCRaw1", "LeftLeadTTCRaw2",
+                     "LeftLeadTTCRaw1", "LeftLeadTTCRaw2", "LeftLeadTTCRaw3",
                      "LeftAlongsideVehicleId", "LeftAlongsideDistance", "LeftAlongsideDeltaV",
-                     "LeftAlongsideDeltaAcceleration", "LeftAlongsideTTCRaw1", "LeftAlongsideTTCRaw2"
+                     "LeftAlongsideDeltaAcceleration", "LeftAlongsideTTCRaw1", "LeftAlongsideTTCRaw2",
+                     "LeftAlongsideTTCRaw3"
                      ]
                 ] = tracksSelf_c.apply(lambda row: self.matchSurroundingVehicles(row, tracksMeta), axis=1,
                                        result_type="expand")
 
                 self.tracksSelf = tracksSelf_c.copy()
                 # print(self.tracksSelf)
-                self.save_to_csv(self.tracksSelf, self.savePath, record, currentId)
+                self.save_to_csv(self.tracksSelf, path, record, currentId)
