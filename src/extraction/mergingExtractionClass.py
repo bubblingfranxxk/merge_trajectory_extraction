@@ -22,7 +22,7 @@ class MergingExtractionClass(object):
         self.LOOKBACK = config["lookback"]
         self.DISTANCE = config["distance_threshold"]
         self.location = config["location_set"]
-        self.savemode = config["savemode"]
+        self.savemode = config["save_mode"]
 
         self.rootPath = os.path.abspath('../../')
         self.savePath = os.path.abspath('../../') + "/result/"
@@ -340,7 +340,7 @@ class MergingExtractionClass(object):
             self.leftrearVehicle, self.leftrearDeltaX, self.leftrearDeltaV, self.leftrearDeltaAcce, \
             self.leftrearTTC_V1, self.leftrearTTC_V2, self.leftrearTTC_V3, \
             self.leftleadVehicle, self.leftleadDeltaX, self.leftleadDeltaV, self.leftleadDeltaAcce, \
-            self.leftleadTTC_V1, self.leftleadTTC_V2, self.leftrearTTC_V3, \
+            self.leftleadTTC_V1, self.leftleadTTC_V2, self.leftleadTTC_V3, \
             self.leftalongsideVehicle, self.leftalongsideDeltaX, self.leftalongsideDeltaV, \
             self.leftalongsideDeltaAcce, self.leftalongsideTTC_V1, self.leftalongsideTTC_V2, self.leftalongsideTTC_V3
 
