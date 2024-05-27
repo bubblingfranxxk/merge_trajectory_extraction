@@ -11,6 +11,7 @@ import argparse
 from loguru import logger
 
 from src.extraction.mergingExtractionClass import MergingExtractionClass
+from src.extraction.mergingPoint import MergingPoint
 
 
 def createArgs():
@@ -47,8 +48,10 @@ def main():
     logger.info("distance threshold {}, lookback is {}", config["distance_threshold"], config["lookback"])
 
     # 调用mergingextraction
-    trajectoryExtraction = MergingExtractionClass(config)
-    trajectoryExtraction.run()
+    # trajectoryExtraction = MergingExtractionClass(config)
+    # trajectoryExtraction.run()
+    pointExtraction = MergingPoint(config)
+    pointExtraction.run()
 
 
 if __name__ == '__main__':
