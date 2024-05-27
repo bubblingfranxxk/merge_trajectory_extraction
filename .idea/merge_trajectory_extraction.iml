@@ -5,6 +5,7 @@
       <excludeFolder url="file://$MODULE_DIR$/drone-dataset-tools-master/.idea" />
       <excludeFolder url="file://$MODULE_DIR$/asset" />
       <excludeFolder url="file://$MODULE_DIR$/output" />
+      <excludeFolder url="file://$MODULE_DIR$/result" />
     </content>
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />
