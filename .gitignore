@@ -3,3 +3,4 @@ asset
 result
 __pycache__/
 *.pyc
+log
