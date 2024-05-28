@@ -11,7 +11,8 @@ import argparse
 from loguru import logger
 
 from src.extraction.mergingExtractionClass import MergingExtractionClass
-from src.extraction.mergingPoint import MergingPoint
+from src.extraction.mergingPointClass import MergingPointClass
+from src.extraction.matchMergingScenarioClass import matchScenariosClass
 
 
 def createArgs():
@@ -47,11 +48,15 @@ def main():
     logger.info("Extracting trajectories and calculating metrics")
     logger.info("distance threshold {}, lookback is {}", config["distance_threshold"], config["lookback"])
 
-    # 调用mergingextraction
+    # 调用mergingextraction，进行轨迹提取
     # trajectoryExtraction = MergingExtractionClass(config)
     # trajectoryExtraction.run()
-    pointExtraction = MergingPoint(config)
-    pointExtraction.run()
+    # 调用MergingPoint，提取合并点，并划分合并场景
+    # pointExtraction = MergingPointClass(config)
+    # pointExtraction.run()
+    # 调用matchMergingScenarios，将汇入轨迹与汇入场景进行匹配
+    matchScenarios = matchScenariosClass(config)
+    matchScenarios.run()
 
 
 if __name__ == '__main__':

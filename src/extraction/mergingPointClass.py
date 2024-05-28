@@ -1,7 +1,7 @@
 # -*- coding = utf-8 -*-
 # @Time : 2024/5/17 19:59
 # @Author : 王砚轩
-# @File : mergingPoint.py.py
+# @File : mergingPointClass.py.py
 # @Software: PyCharm
 
 import os
@@ -15,7 +15,7 @@ from utils import common
 warnings.filterwarnings("ignore")
 
 
-class MergingPoint(object):
+class MergingPointClass(object):
     def __init__(self, config):
         self.config = config
         self.TIMESTEP = config["timestep"]
