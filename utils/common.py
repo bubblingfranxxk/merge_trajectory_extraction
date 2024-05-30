@@ -177,7 +177,7 @@ def ellipse_general_form(a, b, theta, x0, y0):
     return A, B, C, D, E, F
 
 
-def ellipses_tangent_time(a1, b1, theta1, x1, y1, vx, vy, a2, b2, theta2, x2, y2):
+def ellipses_tangent_time(a1, b1, theta1, x1, y1, vx, vy, a2, b2, theta2, x2, y2, start):
     def tangent_equation(t):
         # 计算移动椭圆在当前时刻的中心坐标
         x_t = x2 + vx * t
@@ -192,7 +192,7 @@ def ellipses_tangent_time(a1, b1, theta1, x1, y1, vx, vy, a2, b2, theta2, x2, y2
             + (F1 - F2)
 
     # 求解相切方程的根，即相切时刻
-    t_solution = fsolve(tangent_equation, 0, fprime=sigmoid_gradient, col_deriv=False, maxfev=200)
+    t_solution = fsolve(tangent_equation, start, fprime=None, col_deriv=False, maxfev=200)
 
     # 检查解是否有效
     if len(t_solution) > 0:

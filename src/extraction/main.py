@@ -35,7 +35,7 @@ def createArgs():
                     help="location id set",
                     type=list)
 
-    cs.add_argument('--save_mode', default='test',
+    cs.add_argument('--save_mode', default='result',
                     help="-test means output document in output, -release means output document in result",
                     type=str)
 
@@ -51,9 +51,11 @@ def main():
     # 调用mergingextraction，进行轨迹提取
     # trajectoryExtraction = MergingExtractionClass(config)
     # trajectoryExtraction.run()
+
     # 调用MergingPoint，提取合并点，并划分合并场景
-    # pointExtraction = MergingPointClass(config)
-    # pointExtraction.run()
+    pointExtraction = MergingPointClass(config)
+    pointExtraction.run()
+
     # 调用matchMergingScenarios，将汇入轨迹与汇入场景进行匹配
     matchScenarios = matchScenariosClass(config)
     matchScenarios.run()

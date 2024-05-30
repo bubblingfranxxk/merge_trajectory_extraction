@@ -485,9 +485,15 @@ class MergingExtractionClass(object):
         x2 = otherVehicleThisFrame['xCenter'].values[0]
         y2 = otherVehicleThisFrame['yCenter'].values[0]
 
-        result = common.ellipses_tangent_time(a1, b1, heading, x1, y1, vx, vy, a2, b2, other_heading, x2, y2)
+        start = 0
+        result = common.ellipses_tangent_time(a1, b1, heading, x1, y1, vx, vy, a2, b2, other_heading, x2, y2, start)
         if result is not None:
             t_solution, xt, yt = result
+            while t_solution < 0 and start < 20:
+                start += 2
+                result = \
+                    common.ellipses_tangent_time(a1, b1, heading, x1, y1, vx, vy, a2, b2, other_heading, x2, y2, start)
+                t_solution, xt, yt = result
             return t_solution
 
     def run(self):
