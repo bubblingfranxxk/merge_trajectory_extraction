@@ -1,7 +1,7 @@
 # -*- coding = utf-8 -*-
 # @Time : 2024/5/28 10:47
 # @Author : 王砚轩
-# @File : TTC_effectiveness_measurement.py
+# @File : TTC_acc_figure.py
 # @Software: PyCharm
 import matplotlib.pyplot as plt
 import numpy as np
