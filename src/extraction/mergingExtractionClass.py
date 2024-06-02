@@ -84,8 +84,8 @@ class MergingExtractionClass(object):
         self.leftalongsideTTC_V3 = None
 
         # TTC-V3的系数
-        self.co_a = 1.5
-        self.co_b = 1.2
+        self.co_a = 1.5  # 长轴
+        self.co_b = 1.2  # 短轴
 
         self.locationTotalMergingDistance = {
             "2": 160.32,
@@ -564,7 +564,7 @@ class MergingExtractionClass(object):
                      "LeadVehicleId", "LeadDistance", "LeadDeltaV", "LeadDeltaAcceleration", "LeadTTCRaw1",
                      "LeadTTCRaw2", "LeadTTCRaw3",
                      "LeftRearVehicleId", "LeftRearDistance", "LeftRearDeltaV", "LeftRearDeltaAcceleration",
-                     "LeftRearTTCRaw1", "LeadRearTTCRaw2", "LeftRearTTCRaw3",
+                     "LeftRearTTCRaw1", "LeftRearTTCRaw2", "LeftRearTTCRaw3",
                      "LeftLeadVehicleId", "LeftLeadDistance", "LeftLeadDeltaV", "LeftLeadDeltaAcceleration",
                      "LeftLeadTTCRaw1", "LeftLeadTTCRaw2", "LeftLeadTTCRaw3",
                      "LeftAlongsideVehicleId", "LeftAlongsideDistance", "LeftAlongsideDeltaV",

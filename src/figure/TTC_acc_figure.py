@@ -122,7 +122,7 @@ def setFigure(trajset, path1, path2=None, path3=None, path4=None, path5=None):
     plt.tight_layout()
 
     # 保存
-    plt.savefig(path1, dpi=300, bbox_inches='tight')
+    plt.savefig(path1, dpi=80, bbox_inches='tight')
     plt.close()
 
     # 创建一个3x3的子图布局
@@ -164,7 +164,7 @@ def setFigure(trajset, path1, path2=None, path3=None, path4=None, path5=None):
     plt.tight_layout()
 
     # 保存
-    plt.savefig(path2, dpi=300, bbox_inches='tight')
+    plt.savefig(path2, dpi=80, bbox_inches='tight')
     plt.close()
 
     # 创建一个3x3的子图布局
@@ -206,7 +206,7 @@ def setFigure(trajset, path1, path2=None, path3=None, path4=None, path5=None):
     plt.tight_layout()
 
     # 保存
-    plt.savefig(path3, dpi=300, bbox_inches='tight')
+    plt.savefig(path3, dpi=80, bbox_inches='tight')
     plt.close()
 
     # 创建一个3x3的子图布局
@@ -248,7 +248,7 @@ def setFigure(trajset, path1, path2=None, path3=None, path4=None, path5=None):
     plt.tight_layout()
 
     # 保存
-    plt.savefig(path4, dpi=300, bbox_inches='tight')
+    plt.savefig(path4, dpi=80, bbox_inches='tight')
     plt.close()
 
     # 创建一个3x3的子图布局
@@ -290,7 +290,7 @@ def setFigure(trajset, path1, path2=None, path3=None, path4=None, path5=None):
     plt.tight_layout()
 
     # 保存
-    plt.savefig(path5, dpi=300, bbox_inches='tight')
+    plt.savefig(path5, dpi=80, bbox_inches='tight')
     plt.close()
 
 
@@ -344,8 +344,8 @@ def main():
                 logger.info("Figure is Printed. Recording is {}, track is {}.", row['recordingId'], row['trackId'])
                 count_plt = 0
             if not singleTraj.empty \
-                    and row['recordingId'] != singleTraj['trackId'].values[0] \
-                    and row['trackId'] != singleTraj['trackId'].values[0]:
+                    and (row['recordingId'] != singleTraj['recordingId'].values[0]
+                         or row['trackId'] != singleTraj['trackId'].values[0]):
                 listTraj.append(singleTraj)
                 singleTraj = pd.DataFrame()
                 count_plt += 1
