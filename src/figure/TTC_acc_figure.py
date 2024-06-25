@@ -11,71 +11,71 @@ from loguru import logger
 import shutil
 
 dtype_spec = {
-    "recordingId": int,
-    "trackId": int,
-    "frame": int,
-    "trackLifetime": int,
-    "xCenter": float,
-    "yCenter": float,
-    "heading": float,
-    "width": float,
-    "length": float,
-    "xVelocity": float,
-    "yVelocity": float,
-    "xAcceleration": float,
-    "yAcceleration": float,
-    "lonVelocity": float,
-    "latVelocity": float,
-    "lonAcceleration": float,
-    "latAcceleration": float,
-    "traveledDistance": float,
-    "latLaneCenterOffset": float,
-    "laneletId": int,
+    "recordingId": np.int32,
+    "trackId": np.int32,
+    "frame": np.int32,
+    "trackLifetime": np.int32,
+    "xCenter": np.float32,
+    "yCenter": np.float32,
+    "heading": np.float32,
+    "width": np.float32,
+    "length": np.float32,
+    "xVelocity": np.float32,
+    "yVelocity": np.float32,
+    "xAcceleration": np.float32,
+    "yAcceleration": np.float32,
+    "lonVelocity": np.float32,
+    "latVelocity": np.float32,
+    "lonAcceleration": np.float32,
+    "latAcceleration": np.float32,
+    "traveledDistance": np.float32,
+    "latLaneCenterOffset": np.float32,
+    "laneletId": np.int32,
     "laneChange": bool,
     "lonLaneletPos": str,
-    "leadId": int,
-    "rearId": int,
-    "leftRearId": int,
-    "leftLeadId": int,
+    "leadId": np.int32,
+    "rearId": np.int32,
+    "leftRearId": np.int32,
+    "leftLeadId": np.int32,
     "leftAlongsideId": str,
-    "curxglobalutm": float,
-    "curyglobalutm": float,
+    "curxglobalutm": np.float32,
+    "curyglobalutm": np.float32,
     "SurroundingVehiclesInfo": str,
-    "RearVehicleId": int,
-    "RearDistance": float,
-    "RearDeltaV": float,
-    "RearDeltaAcceleration": float,
-    "RearTTCRaw1": float,
-    "RearTTCRaw2": float,
-    "RearTTCRaw3": float,
-    "LeadVehicleId": int,
-    "LeadDistance": float,
-    "LeadDeltaV": float,
-    "LeadDeltaAcceleration": float,
-    "LeadTTCRaw1": float,
-    "LeadTTCRaw2": float,
-    "LeadTTCRaw3": float,
-    "LeftRearVehicleId": int,
-    "LeftRearDistance": float,
-    "LeftRearDeltaV": float,
-    "LeftRearDeltaAcceleration": float,
-    "LeftRearTTCRaw1": float,
-    "LeftRearTTCRaw2": float,
-    "LeftRearTTCRaw3": float,
-    "LeftLeadVehicleId": int,
-    "LeftLeadDistance": float,
-    "LeftLeadDeltaV": float,
-    "LeftLeadDeltaAcceleration": float,
-    "LeftLeadTTCRaw1": float,
-    "LeftLeadTTCRaw2": float,
-    "LeftLeadTTCRaw3": float,
-    "LeftAlongsideVehicleId": int,
-    "LeftAlongsideDistance": float,
-    "LeftAlongsideDeltaV": float,
-    "LeftAlongsideDeltaAcceleration": float,
-    "LeftAlongsideTTCRaw1": float,
-    "LeftAlongsideTTCRaw2": float,
-    "LeftAlongsideTTCRaw3": float,
+    "RearVehicleId": np.int32,
+    "RearDistance": np.float32,
+    "RearDeltaV": np.float32,
+    "RearDeltaAcceleration": np.float32,
+    "RearTTCRaw1": np.float32,
+    "RearTTCRaw2": np.float32,
+    "RearTTCRaw3": np.float32,
+    "LeadVehicleId": np.int32,
+    "LeadDistance": np.float32,
+    "LeadDeltaV": np.float32,
+    "LeadDeltaAcceleration": np.float32,
+    "LeadTTCRaw1": np.float32,
+    "LeadTTCRaw2": np.float32,
+    "LeadTTCRaw3": np.float32,
+    "LeftRearVehicleId": np.int32,
+    "LeftRearDistance": np.float32,
+    "LeftRearDeltaV": np.float32,
+    "LeftRearDeltaAcceleration": np.float32,
+    "LeftRearTTCRaw1": np.float32,
+    "LeftRearTTCRaw2": np.float32,
+    "LeftRearTTCRaw3": np.float32,
+    "LeftLeadVehicleId": np.int32,
+    "LeftLeadDistance": np.float32,
+    "LeftLeadDeltaV": np.float32,
+    "LeftLeadDeltaAcceleration": np.float32,
+    "LeftLeadTTCRaw1": np.float32,
+    "LeftLeadTTCRaw2": np.float32,
+    "LeftLeadTTCRaw3": np.float32,
+    "LeftAlongsideVehicleId": np.int32,
+    "LeftAlongsideDistance": np.float32,
+    "LeftAlongsideDeltaV": np.float32,
+    "LeftAlongsideDeltaAcceleration": np.float32,
+    "LeftAlongsideTTCRaw1": np.float32,
+    "LeftAlongsideTTCRaw2": np.float32,
+    "LeftAlongsideTTCRaw3": np.float32,
     "MergingType": str
 }
 
@@ -122,7 +122,7 @@ def setFigure(trajset, path1, path2=None, path3=None, path4=None, path5=None):
     plt.tight_layout()
 
     # 保存
-    plt.savefig(path1, dpi=80, bbox_inches='tight')
+    plt.savefig(path1, dpi=150, bbox_inches='tight')
     plt.close()
 
     # 创建一个3x3的子图布局
@@ -164,7 +164,7 @@ def setFigure(trajset, path1, path2=None, path3=None, path4=None, path5=None):
     plt.tight_layout()
 
     # 保存
-    plt.savefig(path2, dpi=80, bbox_inches='tight')
+    plt.savefig(path2, dpi=150, bbox_inches='tight')
     plt.close()
 
     # 创建一个3x3的子图布局
@@ -206,7 +206,7 @@ def setFigure(trajset, path1, path2=None, path3=None, path4=None, path5=None):
     plt.tight_layout()
 
     # 保存
-    plt.savefig(path3, dpi=80, bbox_inches='tight')
+    plt.savefig(path3, dpi=150, bbox_inches='tight')
     plt.close()
 
     # 创建一个3x3的子图布局
@@ -248,7 +248,7 @@ def setFigure(trajset, path1, path2=None, path3=None, path4=None, path5=None):
     plt.tight_layout()
 
     # 保存
-    plt.savefig(path4, dpi=80, bbox_inches='tight')
+    plt.savefig(path4, dpi=150, bbox_inches='tight')
     plt.close()
 
     # 创建一个3x3的子图布局
@@ -290,7 +290,7 @@ def setFigure(trajset, path1, path2=None, path3=None, path4=None, path5=None):
     plt.tight_layout()
 
     # 保存
-    plt.savefig(path5, dpi=80, bbox_inches='tight')
+    plt.savefig(path5, dpi=150, bbox_inches='tight')
     plt.close()
 
 
