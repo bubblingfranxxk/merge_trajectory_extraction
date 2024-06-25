@@ -88,7 +88,7 @@ def plot_data_in_batches(data_sets, batch_size, file_prefix="batch", save_path="
 
                     # 标注点的文本信息
                     if annotation_counter >= batch_size:
-                        plt.text(data.index[k - 1], data['latLaneCenterOffset'].iloc[k - 1], str(annotation_counter),
+                        plt.tex_t(data.index[k - 1], data['latLaneCenterOffset'].iloc[k - 1], str(annotation_counter),
                                  color='black', ha='center', va='center')
                     annotation_counter += 1  # 更新计数器
 
@@ -135,7 +135,7 @@ def plot_data_in_batches(data_sets, batch_size, file_prefix="batch", save_path="
 
                     # 标注点的文本信息
                     if annotation_counter >= remainder:
-                        plt.text(data.index[k - 1], data['latLaneCenterOffset'].iloc[k - 1], str(annotation_counter),
+                        plt.tex_t(data.index[k - 1], data['latLaneCenterOffset'].iloc[k - 1], str(annotation_counter),
                                  color='black', ha='center', va='center')
                     annotation_counter += 1  # 更新计数器
 
@@ -177,29 +177,46 @@ def ellipse_general_form(a, b, theta, x0, y0):
     return A, B, C, D, E, F
 
 
-def ellipses_tangent_time(a1, b1, theta1, x1, y1, vx, vy, a2, b2, theta2, x2, y2, start):
+def ellipses_tangent_time(a1, b1, theta1, x1, y1, vx, vy, a2, b2, theta2, x2, y2, start, guess_point):
+    # 计算静止椭圆的一般形式方程系数
+    A1, B1, C1, D1, E1, F1 = ellipse_general_form(a1, b1, theta1, x1, y1)
+
     def tangent_equation(t):
         # 计算移动椭圆在当前时刻的中心坐标
-        x_t = x2 + vx * t
-        y_t = y2 + vy * t
+        x_T = x2 + vx * t
+        y_T = y2 + vy * t
 
-        # 计算两个椭圆的一般形式方程系数
-        A1, B1, C1, D1, E1, F1 = ellipse_general_form(a1, b1, theta1, x1, y1)
-        A2, B2, C2, D2, E2, F2 = ellipse_general_form(a2, b2, theta2, x_t, y_t)
+        # 计算移动椭圆的一般形式方程系数
+        A2, B2, C2, D2, E2, F2 = ellipse_general_form(a2, b2, theta2, x_T, y_T)
 
-        # 定义相切方程，即两个椭圆的距离为0
-        return (A1 - A2) * x_t ** 2 + (B1 - B2) * x_t * y_t + (C1 - C2) * y_t ** 2 + (D1 - D2) * x_t + (E1 - E2) * y_t \
-            + (F1 - F2)
+        # 构建方程组
+        def equations(Vars):
+            x, y = Vars
+            eq1 = A1 * x ** 2 + B1 * x * y + C1 * y ** 2 + D1 * x + E1 * y + F1
+            eq2 = A2 * x ** 2 + B2 * x * y + C2 * y ** 2 + D2 * x + E2 * y + F2
+            return [eq1, eq2]
 
-    # 求解相切方程的根，即相切时刻
-    t_solution = fsolve(tangent_equation, start, fprime=None, col_deriv=False, maxfev=200)
+        # 初始猜测点
+        guess = [100, 0]
+
+        # 解方程组
+        solution = fsolve(equations, guess)
+
+        x, y = solution
+        eq1_value = A1 * x ** 2 + B1 * x * y + C1 * y ** 2 + D1 * x + E1 * y + F1
+        eq2_value = A2 * x ** 2 + B2 * x * y + C2 * y ** 2 + D2 * x + E2 * y + F2
+
+        return np.abs(eq1_value) + np.abs(eq2_value)
+
+    # 找到相切时刻
+    t_solution = fsolve(tangent_equation, start, fprime=None, col_deriv=False, maxfev=200)[0]
 
     # 检查解是否有效
-    if len(t_solution) > 0:
-        t_solution = t_solution[0]
-        xt = x2 + vx * t_solution
-        yt = y2 + vy * t_solution
-        return t_solution, xt, yt
+    if t_solution is not None:
+        # logger.debug(f"t_solution is {t_solution}")
+        x_t = x2 + vx * t_solution
+        y_t = y2 + vy * t_solution
+        return t_solution, x_t, y_t
     else:
         return None, None, None
 
