@@ -3,6 +3,7 @@
 # @Author : 王砚轩
 # @File : TestTTCandAcceleration.py
 # @Software: PyCharm
+import numpy as np
 
 from TTC_acc_figure import create_output_folder
 from TTC_acc_figure import dtype_spec
@@ -11,12 +12,19 @@ import os
 import pandas as pd
 from scipy.stats import pearsonr, spearmanr
 import statsmodels.api as sm
-from fastdtw import fastdtw
-from scipy.spatial.distance import euclidean
+from dtaidistance import dtw, dtw_visualisation as dtwvis
+
+
+# 定义分割函数
+def split_series(series, n_splits):
+    length = len(series)
+    split_size = length // n_splits
+    return [series[i*split_size : (i+1)*split_size] for i in range(n_splits)]
 
 
 def Test(traj, partial=True):
     p1, p2, p3, s1, s2, s3, d1, d2, d3 = 999, 999, 999, 999, 999, 999, 999, 999, 999
+    results_df1, results_df2, results_df3 = pd.DataFrame(), pd.DataFrame(), pd.DataFrame()
     # TTC1 != 999, TTC2 != 999 and -1, TTC3 >0 and != 999
     ttc1Rear = traj[traj['RearTTCRaw1'] != 999]['RearTTCRaw1']
     ttc2Rear = traj[(traj['RearTTCRaw2'] != 999) & (traj['RearTTCRaw2'] != -1)]['RearTTCRaw2']
@@ -110,34 +118,73 @@ def Test(traj, partial=True):
         logger.warning(f"Error calculating Spearman correlation for ttc3 and acc3: {e}, ttc3: {ttc3}, acc3: {acc3}")
 
     # 协整检验
-    coint_test1 = sm.tsa.coint(ttc1, acc1)
-    coint_test2 = sm.tsa.coint(ttc2, acc2)
-    coint_test3 = sm.tsa.coint(ttc3, acc3)
+    if False:
+        # 分割时间序列成四段
+        n_splits = 4
+
+        # 对每对时间序列进行分割
+        ttc1_splits = split_series(ttc1, n_splits)
+        acc1_splits = split_series(acc1, n_splits)
+        ttc2_splits = split_series(ttc2, n_splits)
+        acc2_splits = split_series(acc2, n_splits)
+        ttc3_splits = split_series(ttc3, n_splits)
+        acc3_splits = split_series(acc3, n_splits)
+
+        # 对每段时间序列进行协整检验并存储结果
+        def perform_coint_test(ttc_splits, acc_splits):
+            coint_results = []
+            for i in range(n_splits):
+                ttc_segment = ttc_splits[i]
+                acc_segment = acc_splits[i]
+                try:
+                    coint_test = sm.tsa.coint(ttc_segment, acc_segment)
+                    coint_results.append({
+                        'segment': i + 1,
+                        'coint_statistic': coint_test[0],
+                        'p_value': coint_test[1],
+                        'critical_values': coint_test[2]
+                    })
+                except Exception as e:
+                    coint_results.append({
+                        'segment': i + 1,
+                        'error': str(e)
+                    })
+            return coint_results
+
+        # 进行协整检验
+        coint_results1 = perform_coint_test(ttc1_splits, acc1_splits)
+        coint_results2 = perform_coint_test(ttc2_splits, acc2_splits)
+        coint_results3 = perform_coint_test(ttc3_splits, acc3_splits)
+
+        # 转换结果为 DataFrame
+        results_df1 = pd.DataFrame(coint_results1)
+        results_df2 = pd.DataFrame(coint_results2)
+        results_df3 = pd.DataFrame(coint_results3)
 
     # 动态时间规整
     if partial:
         try:
-            d1, path1 = fastdtw(ttc1, acc1, dist=euclidean)
+            d1 = dtw.distance(ttc1, acc1)
         except Exception as e:
             logger.warning(f"Error recording id: {traj['recordingId'].values[0]}, "
                            f"error track id: {traj['trackId'].values[0]}")
             logger.warning(f"Error calculating DTW for ttc1 and acc1: {e}, ttc1: {ttc1}, acc1: {acc1}")
 
         try:
-            d2, path2 = fastdtw(ttc2, acc2, dist=euclidean)
+            d2 = dtw.distance(ttc2, acc2)
         except Exception as e:
             logger.warning(f"Error recording id: {traj['recordingId'].values[0]}, "
                            f"error track id: {traj['trackId'].values[0]}")
             logger.warning(f"Error calculating DTW for ttc2 and acc2: {e}, ttc2: {ttc2}, acc2: {acc2}")
 
         try:
-            d3, path3 = fastdtw(ttc3, acc3, dist=euclidean)
+            d3 = dtw.distance(ttc3, acc3)
         except Exception as e:
             logger.warning(f"Error recording id: {traj['recordingId'].values[0]}, "
                            f"error track id: {traj['trackId'].values[0]}")
             logger.warning(f"Error calculating DTW for ttc3 and acc3: {e}, ttc3: {ttc3}, acc3: {acc3}")
 
-    return p1, p2, p3, s1, s2, s3, coint_test1, coint_test2, coint_test3, d1, d2, d3
+    return p1, p2, p3, s1, s2, s3, results_df1, results_df2, results_df3, d1, d2, d3
 
 
 def main():
@@ -150,8 +197,10 @@ def main():
     # 获取文件夹中合并的MergingTrajectory
     traj_files = [f for f in os.listdir(assetPath) if f.endswith('.csv')]
     outpath = assetPath + "/Test/"
+    singlepath = assetPath + "/single_traj/"
     # 建立检验的文件夹
     create_output_folder(assetPath, "Test")
+    create_output_folder(assetPath, "single_traj")
 
     for file in traj_files:
         if "Trajectory" not in file:
@@ -165,12 +214,12 @@ def main():
         logger.info("TTC1 total info: Pearson Correlation: {}, Spearman Correlation: {}", total_p1, total_s1)
         logger.info("TTC2 total info: Pearson Correlation: {}, Spearman Correlation: {}", total_p2, total_s2)
         logger.info("TTC3 total info: Pearson Correlation: {}, Spearman Correlation: {}", total_p3, total_s3)
-        logger.info("TTC1 total info: Coint Cointegration Test Statistic: {}, "
-                    "Coint P-value: {}, Coint Critical Values: {}", coint1[0], coint1[1], coint1[2])
-        logger.info("TTC2 total info: Coint Cointegration Test Statistic: {}, "
-                    "Coint P-value: {}, Coint Critical Values: {}", coint2[0], coint2[1], coint2[2])
-        logger.info("TTC3 total info: Coint Cointegration Test Statistic: {}, "
-                    "Coint P-value: {}, Coint Critical Values: {}", coint3[0], coint3[1], coint3[2])
+        coint1.to_csv(outpath+r"\Coint_Test1.csv")
+        logger.info("TTC1 total info: Coint Result1 is saved")
+        coint2.to_csv(outpath+r"\Coint_Test2.csv")
+        logger.info("TTC2 total info: Coint Result2 is saved")
+        coint3.to_csv(outpath+r"\Coint_Test3.csv")
+        logger.info("TTC3 total info: Coint Result3 is saved")
         # logger.info("TTC1 total info: DTW Distance: {}", total_d1)
         # logger.info("TTC2 total info: DTW Distance: {}", total_d2)
         # logger.info("TTC3 total info: DTW Distance: {}", total_d3)
@@ -182,11 +231,15 @@ def main():
             if not singleTraj.empty \
                     and (row['recordingId'] != singleTraj['recordingId'].values[0]
                          or row['trackId'] != singleTraj['trackId'].values[0]):
-                logger.info("Current recording id is {}, current track id is {}", row['recordingId'], row['trackId'])
+                logger.info("Current recording id is {}, current track id is {}", singleTraj['recordingId'],
+                            singleTraj['trackId'])
+                file_name = singlepath + f"{singleTraj['recordingId'].values[0]}_" \
+                                         f"{singleTraj['trackId'].values[0]}_single_trajectory.csv"
+                singleTraj.to_csv(file_name, index=False)
                 p1, p2, p3, s1, s2, s3, _, _, _, d1, d2, d3 = Test(singleTraj)
                 temp = {
-                    "recordingId": row["recordingId"],
-                    "trackId": row["trackId"],
+                    "recordingId": singleTraj["recordingId"],
+                    "trackId": singleTraj["trackId"],
                     "Pearson1": p1,
                     "Pearson2": p2,
                     "Pearson3": p3,
@@ -195,7 +248,8 @@ def main():
                     "Spearman3": s3,
                     "DTW_Distance1": d1,
                     "DTW_Distance2": d2,
-                    "DTW_Distacne3": d3
+                    "DTW_Distance3": d3,
+                    "length": len(singleTraj)
                 }
                 coffList = pd.concat([coffList, pd.DataFrame(data=temp, index=[0])], ignore_index=True)
                 temp = {}
