@@ -84,7 +84,7 @@ class MergingExtractionClass(object):
         self.leftalongsideTTC_V3 = None
 
         # TTC-V3的系数
-        self.co_a = 1.5  # 长轴
+        self.co_a = 2  # 长轴
         self.co_b = 1.2  # 短轴
 
         self.locationTotalMergingDistance = {
@@ -349,12 +349,12 @@ class MergingExtractionClass(object):
             self.leadTTC_V1 = self.leadDeltaX / self.leadDeltaV
         if self.rearVehicle and self.rearDeltaV < 0:
             self.rearTTC_V1 = - self.rearDeltaX / self.rearDeltaV
-        if self.leftleadVehicle and self.leftleadDeltaV > 0:
-            self.leftleadTTC_V1 = self.leftleadDeltaX / self.leftleadDeltaV
-        if self.leftrearVehicle and self.leftrearDeltaV < 0:
-            self.leftrearTTC_V1 = - self.leftrearDeltaX / self.leftrearDeltaV
-        if self.leftalongsideVehicle:
-            self.leftalongsideTTC_V1 = self.leftalongsideDeltaX / abs(self.leftalongsideDeltaV)
+        # if self.leftleadVehicle and self.leftleadDeltaV > 0:
+        #     self.leftleadTTC_V1 = self.leftleadDeltaX / self.leftleadDeltaV
+        # if self.leftrearVehicle and self.leftrearDeltaV < 0:
+        #     self.leftrearTTC_V1 = - self.leftrearDeltaX / self.leftrearDeltaV
+        # if self.leftalongsideVehicle:
+        #     self.leftalongsideTTC_V1 = self.leftalongsideDeltaX / abs(self.leftalongsideDeltaV)
 
     def getTTC_V2(self, data, otherMeta, otherVehicleThisFrame):
         heading = math.radians(data['heading'])
@@ -486,7 +486,8 @@ class MergingExtractionClass(object):
         y2 = otherVehicleThisFrame['yCenter'].values[0]
 
         start = 0
-        result = common.ellipses_tangent_time(a1, b1, heading, x1, y1, vx, vy, a2, b2, other_heading, x2, y2, start)
+        result = common.ellipses_tangent_time(a1, b1, heading, x1, y1, vx, vy, a2, b2, other_heading, x2, y2, start,
+                                              )
         if result is not None:
             t_solution, xt, yt = result
             while t_solution < 0 and start < 20:
