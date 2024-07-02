@@ -92,11 +92,11 @@ def setFigure(trajset, path1, path2=None, path3=None, path4=None, path5=None):
             break
         temp = trajset[i]
         xmin, xmax = min(temp['frame']), max(temp['frame'])
-        x = temp[temp['RearTTCRaw1'] != 999]['frame']
-        y1 = temp[temp['RearTTCRaw1'] != 999]['RearTTCRaw1']
-        y2 = temp[temp['RearTTCRaw1'] != 999]['RearTTCRaw2']
-        y3 = temp[temp['RearTTCRaw1'] != 999]['RearTTCRaw3']
-        y4 = temp[temp['RearTTCRaw1'] != 999]['lonAcceleration']
+        x = temp[temp['RearDeltaV'] < 0]['frame']
+        y1 = temp[temp['RearDeltaV'] < 0]['RearTTCRaw1']
+        y2 = temp[temp['RearDeltaV'] < 0]['RearTTCRaw2']
+        y3 = temp[temp['RearDeltaV'] < 0]['RearTTCRaw3']
+        y4 = temp[temp['RearDeltaV'] < 0]['lonAcceleration']
         recordingId = temp['recordingId'].values[0]
         trackId = temp['trackId'].values[0]
         string = "recording " + str(recordingId) + " track " + str(trackId)
@@ -116,7 +116,7 @@ def setFigure(trajset, path1, path2=None, path3=None, path4=None, path5=None):
         ax2.set_ylabel('m/s2')
         ax.legend(loc='upper left')
         ax2.legend(loc='upper right')
-        ax.set_title(string+' Rear')
+        ax.set_title(string + ' Rear')
 
     # 调整布局，使子图不重叠
     plt.tight_layout()
@@ -134,11 +134,11 @@ def setFigure(trajset, path1, path2=None, path3=None, path4=None, path5=None):
             break
         temp = trajset[i]
         xmin, xmax = min(temp['frame']), max(temp['frame'])
-        x = temp[temp['LeadTTCRaw1'] != 999]['frame']
-        y1 = temp[temp['LeadTTCRaw1'] != 999]['LeadTTCRaw1']
-        y2 = temp[temp['LeadTTCRaw1'] != 999]['LeadTTCRaw2']
-        y3 = temp[temp['LeadTTCRaw1'] != 999]['LeadTTCRaw3']
-        y4 = temp[temp['LeadTTCRaw1'] != 999]['lonAcceleration']
+        x = temp[(temp['LeadDeltaV'] > 0) & (temp['LeadDeltaV'] != 999)]['frame']
+        y1 = temp[(temp['LeadDeltaV'] > 0) & (temp['LeadDeltaV'] != 999)]['LeadTTCRaw1']
+        y2 = temp[(temp['LeadDeltaV'] > 0) & (temp['LeadDeltaV'] != 999)]['LeadTTCRaw2']
+        y3 = temp[(temp['LeadDeltaV'] > 0) & (temp['LeadDeltaV'] != 999)]['LeadTTCRaw3']
+        y4 = temp[(temp['LeadDeltaV'] > 0) & (temp['LeadDeltaV'] != 999)]['lonAcceleration']
         recordingId = temp['recordingId'].values[0]
         trackId = temp['trackId'].values[0]
         string = "recording " + str(recordingId) + " track " + str(trackId)
@@ -176,11 +176,11 @@ def setFigure(trajset, path1, path2=None, path3=None, path4=None, path5=None):
             break
         temp = trajset[i]
         xmin, xmax = min(temp['frame']), max(temp['frame'])
-        x = temp[temp['LeftRearTTCRaw1'] != 999]['frame']
-        y1 = temp[temp['LeftRearTTCRaw1'] != 999]['LeftRearTTCRaw1']
-        y2 = temp[temp['LeftRearTTCRaw1'] != 999]['LeftRearTTCRaw2']
-        y3 = temp[temp['LeftRearTTCRaw1'] != 999]['LeftRearTTCRaw3']
-        y4 = temp[temp['LeftRearTTCRaw1'] != 999]['lonAcceleration']
+        x = temp[temp['LeftRearDeltaV'] < 0]['frame']
+        y1 = temp[temp['LeftRearDeltaV'] < 0]['LeftRearTTCRaw1']
+        y2 = temp[temp['LeftRearDeltaV'] < 0]['LeftRearTTCRaw2']
+        y3 = temp[temp['LeftRearDeltaV'] < 0]['LeftRearTTCRaw3']
+        y4 = temp[temp['LeftRearDeltaV'] < 0]['lonAcceleration']
         recordingId = temp['recordingId'].values[0]
         trackId = temp['trackId'].values[0]
         string = "recording " + str(recordingId) + " track " + str(trackId)
@@ -218,11 +218,11 @@ def setFigure(trajset, path1, path2=None, path3=None, path4=None, path5=None):
             break
         temp = trajset[i]
         xmin, xmax = min(temp['frame']), max(temp['frame'])
-        x = temp[temp['LeftLeadTTCRaw1'] != 999]['frame']
-        y1 = temp[temp['LeftLeadTTCRaw1'] != 999]['LeftLeadTTCRaw1']
-        y2 = temp[temp['LeftLeadTTCRaw1'] != 999]['LeftLeadTTCRaw2']
-        y3 = temp[temp['LeftLeadTTCRaw1'] != 999]['LeftLeadTTCRaw3']
-        y4 = temp[temp['LeftLeadTTCRaw1'] != 999]['lonAcceleration']
+        x = temp[(temp['LeftLeadDeltaV'] > 0) & (temp['LeftLeadDeltaV'] != 999)]['frame']
+        y1 = temp[(temp['LeftLeadDeltaV'] > 0) & (temp['LeftLeadDeltaV'] != 999)]['LeftLeadTTCRaw1']
+        y2 = temp[(temp['LeftLeadDeltaV'] > 0) & (temp['LeftLeadDeltaV'] != 999)]['LeftLeadTTCRaw2']
+        y3 = temp[(temp['LeftLeadDeltaV'] > 0) & (temp['LeftLeadDeltaV'] != 999)]['LeftLeadTTCRaw3']
+        y4 = temp[(temp['LeftLeadDeltaV'] > 0) & (temp['LeftLeadDeltaV'] != 999)]['lonAcceleration']
         recordingId = temp['recordingId'].values[0]
         trackId = temp['trackId'].values[0]
         string = "recording " + str(recordingId) + " track " + str(trackId)
@@ -260,11 +260,11 @@ def setFigure(trajset, path1, path2=None, path3=None, path4=None, path5=None):
             break
         temp = trajset[i]
         xmin, xmax = min(temp['frame']), max(temp['frame'])
-        x = temp[temp['LeftAlongsideTTCRaw1'] != 999]['frame']
-        y1 = temp[temp['LeftAlongsideTTCRaw1'] != 999]['LeftAlongsideTTCRaw1']
-        y2 = temp[temp['LeftAlongsideTTCRaw1'] != 999]['LeftAlongsideTTCRaw2']
-        y3 = temp[temp['LeftAlongsideTTCRaw1'] != 999]['LeftAlongsideTTCRaw3']
-        y4 = temp[temp['LeftAlongsideTTCRaw1'] != 999]['lonAcceleration']
+        x = temp[temp['LeftAlongsideVehicleId'] != 0]['frame']
+        y1 = temp[temp['LeftAlongsideVehicleId'] != 0]['LeftAlongsideTTCRaw1']
+        y2 = temp[temp['LeftAlongsideVehicleId'] != 0]['LeftAlongsideTTCRaw2']
+        y3 = temp[temp['LeftAlongsideVehicleId'] != 0]['LeftAlongsideTTCRaw3']
+        y4 = temp[temp['LeftAlongsideVehicleId'] != 0]['lonAcceleration']
         recordingId = temp['recordingId'].values[0]
         trackId = temp['trackId'].values[0]
         string = "recording " + str(recordingId) + " track " + str(trackId)
@@ -320,6 +320,8 @@ def main():
     create_output_folder(TTCpath, "LeftLead")
     create_output_folder(TTCpath, "LeftAlongside")
 
+    exception = pd.DataFrame(data=None, columns=['recordingId', 'trackId'])
+
     for file in traj_files:
         if "Trajectory" not in file:
             continue
@@ -334,11 +336,11 @@ def main():
         for index, row in trajectory.iterrows():
             if count_plt == 9:
                 setFigure(trajset=listTraj,
-                          path1=TTCpath+'/Rear/'+str(num)+'.png',
-                          path2=TTCpath+'/Lead/'+str(num)+'.png',
-                          path3=TTCpath+'/LeftRear/'+str(num)+'.png',
-                          path4=TTCpath+'/LeftLead/'+str(num)+'.png',
-                          path5=TTCpath+'/LeftAlongside/'+str(num)+'.png')
+                          path1=TTCpath + '/Rear/' + str(num) + '.png',
+                          path2=TTCpath + '/Lead/' + str(num) + '.png',
+                          path3=TTCpath + '/LeftRear/' + str(num) + '.png',
+                          path4=TTCpath + '/LeftLead/' + str(num) + '.png',
+                          path5=TTCpath + '/LeftAlongside/' + str(num) + '.png')
                 listTraj = []
                 num += 1
                 logger.info("Figure is Printed. Recording is {}, track is {}.", row['recordingId'], row['trackId'])
@@ -347,12 +349,22 @@ def main():
                     and (row['recordingId'] != singleTraj['recordingId'].values[0]
                          or row['trackId'] != singleTraj['trackId'].values[0]):
                 listTraj.append(singleTraj)
+                if (singleTraj['RearTTCRaw3'] < 0).any() or (singleTraj['LeadTTCRaw3'] < 0).any() or \
+                        (singleTraj['LeftRearTTCRaw3'] < 0).any() or (singleTraj['LeftLeadTTCRaw3'] < 0).any() or \
+                        (singleTraj['LeftAlongsideTTCRaw3'] < 0).any():
+                    exception = pd.concat([exception,
+                                           pd.DataFrame({'recordingId': [singleTraj['recordingId'].iloc[0]],
+                                                         'trackId': [singleTraj['trackId'].iloc[0]]})],
+                                          ignore_index=True)
+
                 singleTraj = pd.DataFrame()
                 count_plt += 1
 
             newrow = pd.DataFrame(row).transpose()
             # print(newrow)
             singleTraj = pd.concat([singleTraj, newrow])
+    exception.to_csv(assetPath + "exception.csv", index=False)
+    logger.info("exception.csv has been generated.")
 
 
 if __name__ == '__main__':

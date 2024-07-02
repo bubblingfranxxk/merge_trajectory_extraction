@@ -13,7 +13,7 @@ class matchScenariosClass(object):
     def __init__(self, config):
         # 定义包含CSV文件的文件夹路径
         self.rootPath = os.path.abspath('../../')
-        self.trajPath = self.rootPath + "/result/"
+        self.trajPath = self.rootPath + "/output/"
         self.DISTANCE = config["distance_threshold"]
         self.poiPath = self.rootPath + "/asset/" + "mergingData" + str(self.DISTANCE) + "m.csv"
         self.outputPath = self.rootPath + "/asset/"

@@ -84,8 +84,8 @@ class MergingExtractionClass(object):
         self.leftalongsideTTC_V3 = None
 
         # TTC-V3的系数
-        self.co_a = 2  # 长轴
-        self.co_b = 1.2  # 短轴
+        self.co_a = 1.5  # 长轴
+        self.co_b = 1.3  # 短轴
 
         self.locationTotalMergingDistance = {
             "2": 160.32,
@@ -285,7 +285,8 @@ class MergingExtractionClass(object):
                 self.leadDeltaAcce = deltaAcce
                 if self.leadVehicle and self.leadDeltaV > 0:
                     self.leadTTC_V2 = self.getTTC_V2(row, otherVehicleMeta, otherVehicleThisFrame)
-                    self.leadTTC_V3 = self.getTTC_V3(row, otherVehicleMeta, otherVehicleThisFrame)
+                    self.leadTTC_V3 = self.getTTC_V3(row, otherVehicleMeta, otherVehicleThisFrame,
+                                                     self.leadDeltaX / self.leadDeltaV)
             elif vehicleType == "rearId":
                 self.rearVehicle = row[vehicleType]
                 self.rearDeltaX = distance
@@ -293,7 +294,8 @@ class MergingExtractionClass(object):
                 self.rearDeltaAcce = deltaAcce
                 if self.rearVehicle and self.rearDeltaV < 0:
                     self.rearTTC_V2 = self.getTTC_V2(row, otherVehicleMeta, otherVehicleThisFrame)
-                    self.rearTTC_V3 = self.getTTC_V3(row, otherVehicleMeta, otherVehicleThisFrame)
+                    self.rearTTC_V3 = self.getTTC_V3(row, otherVehicleMeta, otherVehicleThisFrame,
+                                                     -self.rearDeltaX / self.rearDeltaV)
             elif row["frame"] < thisFrame and vehicleType == "leftLeadId":
                 self.leftleadVehicle = row[vehicleType]
                 self.leftleadDeltaX = distance
@@ -301,7 +303,8 @@ class MergingExtractionClass(object):
                 self.leftleadDeltaAcce = deltaAcce
                 if self.leftleadVehicle and self.leftleadDeltaV > 0:
                     self.leftleadTTC_V2 = self.getTTC_V2(row, otherVehicleMeta, otherVehicleThisFrame)
-                    self.leftleadTTC_V3 = self.getTTC_V3(row, otherVehicleMeta, otherVehicleThisFrame)
+                    self.leftleadTTC_V3 = self.getTTC_V3(row, otherVehicleMeta, otherVehicleThisFrame,
+                                                         self.leftleadDeltaX / self.leftleadDeltaV)
             elif row["frame"] < thisFrame and vehicleType == "leftRearId":
                 self.leftrearVehicle = row[vehicleType]
                 self.leftrearDeltaX = distance
@@ -309,7 +312,8 @@ class MergingExtractionClass(object):
                 self.leftrearDeltaAcce = deltaAcce
                 if self.leftrearVehicle and self.leftrearDeltaV < 0:
                     self.leftrearTTC_V2 = self.getTTC_V2(row, otherVehicleMeta, otherVehicleThisFrame)
-                    self.leftrearTTC_V3 = self.getTTC_V3(row, otherVehicleMeta, otherVehicleThisFrame)
+                    self.leftrearTTC_V3 = self.getTTC_V3(row, otherVehicleMeta, otherVehicleThisFrame,
+                                                         -self.leftrearDeltaX / self.leftrearDeltaV)
             elif row["frame"] < thisFrame and vehicleType == "leftAlongsideId":
                 self.leftalongsideVehicle = row[vehicleType]
                 self.leftalongsideDeltaX = distance
@@ -317,7 +321,8 @@ class MergingExtractionClass(object):
                 self.leftalongsideDeltaAcce = deltaAcce
                 if self.leftalongsideVehicle:
                     self.leftalongsideTTC_V2 = self.getTTC_V2(row, otherVehicleMeta, otherVehicleThisFrame)
-                    self.leftalongsideTTC_V3 = self.getTTC_V3(row, otherVehicleMeta, otherVehicleThisFrame)
+                    self.leftalongsideTTC_V3 = self.getTTC_V3(row, otherVehicleMeta, otherVehicleThisFrame,
+                                                              self.leftalongsideDeltaX / abs(self.leftalongsideDeltaV))
 
             trajectoryInfo[str(vehicleType) + ":" + str(row[vehicleType])] = {
                 # "id": otherVehicleThisFrame["trackId"],
@@ -471,7 +476,7 @@ class MergingExtractionClass(object):
         else:
             return -1
 
-    def getTTC_V3(self, data, otherMeta, otherVehicleThisFrame):
+    def getTTC_V3(self, data, otherMeta, otherVehicleThisFrame, guess_value):
         heading = math.radians(data['heading'])
         other_heading = math.radians(otherVehicleThisFrame['heading'])
         a1 = self.co_a * data['length'] * 0.5
@@ -485,16 +490,16 @@ class MergingExtractionClass(object):
         x2 = otherVehicleThisFrame['xCenter'].values[0]
         y2 = otherVehicleThisFrame['yCenter'].values[0]
 
-        start = 0
-        result = common.ellipses_tangent_time(a1, b1, heading, x1, y1, vx, vy, a2, b2, other_heading, x2, y2, start,
-                                              )
+        result = common.ellipses_tangent_time(a1, b1, heading, x1, y1, vx, vy, a2, b2, other_heading, x2, y2,
+                                              guess_value)
         if result is not None:
             t_solution, xt, yt = result
-            while t_solution < 0 and start < 20:
-                start += 2
-                result = \
-                    common.ellipses_tangent_time(a1, b1, heading, x1, y1, vx, vy, a2, b2, other_heading, x2, y2, start)
-                t_solution, xt, yt = result
+            # while t_solution < 0:
+            #     guess_value *= 1.5
+            #     result = \
+            #         common.ellipses_tangent_time(a1, b1, heading, x1, y1, vx, vy, a2, b2, other_heading, x2, y2,
+            #                                      guess_value)
+            #     t_solution, xt, yt = result
             return t_solution
 
     def run(self):

@@ -177,7 +177,7 @@ def ellipse_general_form(a, b, theta, x0, y0):
     return A, B, C, D, E, F
 
 
-def ellipses_tangent_time(a1, b1, theta1, x1, y1, vx, vy, a2, b2, theta2, x2, y2, start, guess_point):
+def ellipses_tangent_time(a1, b1, theta1, x1, y1, vx, vy, a2, b2, theta2, x2, y2, guess_t):
     # 计算静止椭圆的一般形式方程系数
     A1, B1, C1, D1, E1, F1 = ellipse_general_form(a1, b1, theta1, x1, y1)
 
@@ -197,10 +197,10 @@ def ellipses_tangent_time(a1, b1, theta1, x1, y1, vx, vy, a2, b2, theta2, x2, y2
             return [eq1, eq2]
 
         # 初始猜测点
-        guess = [100, 0]
+        guess = [(x1+x_T)/2.0, (y1+y_T)/2.0]
 
         # 解方程组
-        solution = fsolve(equations, guess)
+        solution = fsolve(equations, guess, fprime=None, col_deriv=False, maxfev=1000)
 
         x, y = solution
         eq1_value = A1 * x ** 2 + B1 * x * y + C1 * y ** 2 + D1 * x + E1 * y + F1
@@ -209,7 +209,8 @@ def ellipses_tangent_time(a1, b1, theta1, x1, y1, vx, vy, a2, b2, theta2, x2, y2
         return np.abs(eq1_value) + np.abs(eq2_value)
 
     # 找到相切时刻
-    t_solution = fsolve(tangent_equation, start, fprime=None, col_deriv=False, maxfev=200)[0]
+    t_solutions = fsolve(tangent_equation, guess_t, fprime=None, col_deriv=False, maxfev=1000)
+    t_solution = min((x for x in t_solutions if x > 0), default=None)
 
     # 检查解是否有效
     if t_solution is not None:
@@ -218,9 +219,85 @@ def ellipses_tangent_time(a1, b1, theta1, x1, y1, vx, vy, a2, b2, theta2, x2, y2
         y_t = y2 + vy * t_solution
         return t_solution, x_t, y_t
     else:
-        return None, None, None
+        return 999, None, None
 
 
 def sigmoid_gradient(x):
     sigmoid = 1 / (1 + np.exp(-x))
     return sigmoid * (1 - sigmoid)
+
+
+def reload_ellipse_general_form(a, b, theta, x0, y0):
+    # 将角度转换为弧度
+    theta_rad = np.deg2rad(theta)
+
+    # 计算系数
+    cos_theta = np.cos(theta_rad)
+    sin_theta = np.sin(theta_rad)
+
+    A = (cos_theta / a) ** 2 + (sin_theta / b) ** 2
+    B = 2 * (sin_theta * cos_theta) * (1 / a ** 2 - 1 / b ** 2)
+    C = (sin_theta / a) ** 2 + (cos_theta / b) ** 2
+    D = -2 * A * x0 - B * y0
+    E = -B * x0 - 2 * C * y0
+    F = A * x0 ** 2 + B * x0 * y0 + C * y0 ** 2 - 1
+
+    return A, B, C, D, E, F
+
+
+def reload_ellipses_tangent_time(a1, b1, theta1, x1, y1, vx, vy, a2, b2, theta2, x2, y2):
+    # 计算静止椭圆的一般形式方程系数
+    A1, B1, C1, D1, E1, F1 = ellipse_general_form(a1, b1, theta1, x1, y1)
+
+    def tangent_equation(t):
+        x_T = x2 + vx * t
+        y_T = y2 + vy * t
+
+        # 计算移动椭圆的一般形式方程系数
+        A2, B2, C2, D2, E2, F2 = ellipse_general_form(a2, b2, theta2, x_T, y_T)
+
+        # 定义相切条件
+        def equations(vars):
+            x, y = vars
+            eq1 = A1 * x ** 2 + B1 * x * y + C1 * y ** 2 + D1 * x + E1 * y + F1
+            eq2 = A2 * x ** 2 + B2 * x * y + C2 * y ** 2 + D2 * x + E2 * y + F2
+            return [eq1, eq2]
+
+        # 初始猜测点
+        guess = [(x1+x_T)/2.0, (y1+y_T)/2.0]
+
+        # 解方程组
+        solution = fsolve(equations, guess)
+
+        x, y = solution
+        eq1_value = A1 * x ** 2 + B1 * x * y + C1 * y ** 2 + D1 * x + E1 * y + F1
+        eq2_value = A2 * x ** 2 + B2 * x * y + C2 * y ** 2 + D2 * x + E2 * y + F2
+
+        # 如果两个方程的值都接近0，则认为两个椭圆相切
+        return np.abs(eq1_value) + np.abs(eq2_value)
+
+    # 尝试不同的初始猜测值
+    t_values = np.linspace(0, 50, 100)  # 从0到10，取100个值作为初始猜测值
+    best_t = None
+    best_value = np.inf
+
+    for t_guess in t_values:
+        try:
+            t_solution = fsolve(tangent_equation, t_guess, maxfev=1000)[0]
+            xt = x2 + vx * t_solution
+            yt = y2 + vy * t_solution
+            value = tangent_equation(t_solution)
+            if value < best_value:
+                best_value = value
+                best_t = t_solution
+        except:
+            continue
+
+    # 如果找到最优解，计算相切时运动椭圆的中心点坐标
+    if best_t is not None:
+        xt = x2 + vx * best_t
+        yt = y2 + vy * best_t
+        return best_t, xt, yt
+    else:
+        return None, None, None
+
