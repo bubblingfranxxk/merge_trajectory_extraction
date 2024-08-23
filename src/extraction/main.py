@@ -35,7 +35,7 @@ def createArgs():
                     help="location id set",
                     type=list)
 
-    cs.add_argument('--save_mode', default='test',
+    cs.add_argument('--save_mode', default='release',
                     help="-test means output document in output, -release means output document in result",
                     type=str)
 

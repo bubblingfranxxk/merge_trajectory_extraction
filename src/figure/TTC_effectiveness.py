@@ -49,7 +49,10 @@ def main():
         ttc2 = pd.concat([ttc2Rear, ttc2Lead, ttc2LeftRear, ttc2LeftLead, ttc2LeftAlongside], ignore_index=True)
         ttc3 = pd.concat([ttc3Rear, ttc3Lead, ttc3LeftRear, ttc3LeftLead, ttc3LeftAlongside], ignore_index=True)
 
-        # 失效情况数据 case1: ttc2失效，ttc3有效，case2: ttc2有效，ttc3失效，case3:ttc2失效，ttc3失效，case4:ttc2有效，ttc3有效
+        # 失效情况数据 case1: tt1有效，ttc2失效，ttc3有效，case2: tt1有效，ttc2有效，ttc3失效，
+        # case3:tt1有效，ttc2失效，ttc3失效，case4:tt1有效，ttc2有效，ttc3有效
+        # case5: tt1失效，ttc2失效，ttc3有效，case6: tt1失效，ttc2有效，ttc3失效，
+        # case7:tt1失效，ttc2失效，ttc3失效，case8:tt1失效，ttc2有效，ttc3有效
         case1Rear = traj[(traj['RearTTCRaw1'] != 999) & (traj['RearTTCRaw2'] != 999) & (traj['RearTTCRaw2'] == -1) &
                          (traj['RearTTCRaw3'] > 0) & (traj['RearTTCRaw3'] != 999)]['RearTTCRaw3']
         case1Lead = traj[(traj['LeadTTCRaw1'] != 999) & (traj['LeadTTCRaw2'] != 999) & (traj['LeadTTCRaw2'] == -1) &
@@ -106,6 +109,62 @@ def main():
                                   (traj['LeftAlongsideTTCRaw2'] != -1) & (traj['LeftAlongsideTTCRaw3'] > 0) &
                                   (traj['LeftAlongsideTTCRaw3'] != 999)]['LeftAlongsideTTCRaw2']
 
+        case5Rear = traj[(traj['RearTTCRaw1'] == 999) & (traj['RearTTCRaw2'] != 999) & (traj['RearTTCRaw2'] == -1) &
+                         (traj['RearTTCRaw3'] > 0) & (traj['RearTTCRaw3'] != 999)]['RearTTCRaw3']
+        case5Lead = traj[(traj['LeadTTCRaw1'] == 999) & (traj['LeadTTCRaw2'] != 999) & (traj['LeadTTCRaw2'] == -1) &
+                         (traj['LeadTTCRaw3'] > 0) & (traj['LeadTTCRaw3'] != 999)]['LeadTTCRaw3']
+        case5LeftRear = traj[(traj['LeftRearTTCRaw1'] == 999) & (traj['LeftRearTTCRaw2'] != 999) &
+                             (traj['LeftRearTTCRaw2'] == -1) & (traj['LeftRearTTCRaw3'] > 0) &
+                             (traj['LeftRearTTCRaw3'] != 999)]['LeftRearTTCRaw3']
+        case5LeftLead = traj[(traj['LeftLeadTTCRaw1'] == 999) & (traj['LeftLeadTTCRaw2'] != 999) &
+                             (traj['LeftLeadTTCRaw2'] == -1) & (traj['LeftLeadTTCRaw3'] > 0) &
+                             (traj['LeftLeadTTCRaw3'] != 999)]['LeftLeadTTCRaw3']
+        case5LeftAlongside = traj[(traj['LeftAlongsideTTCRaw1'] == 999) & (traj['LeftAlongsideTTCRaw2'] != 999) &
+                                  (traj['LeftAlongsideTTCRaw2'] == -1) & (traj['LeftAlongsideTTCRaw3'] > 0) &
+                                  (traj['LeftAlongsideTTCRaw3'] != 999)]['LeftAlongsideTTCRaw3']
+
+        case6Rear = traj[(traj['RearTTCRaw1'] == 999) & (traj['RearTTCRaw2'] != 999) & (traj['RearTTCRaw2'] != -1) &
+                         (traj['RearTTCRaw3'] < 0) & (traj['RearTTCRaw3'] != 999)]['RearTTCRaw2']
+        case6Lead = traj[(traj['LeadTTCRaw1'] == 999) & (traj['LeadTTCRaw2'] != 999) & (traj['LeadTTCRaw2'] != -1) &
+                         (traj['LeadTTCRaw3'] < 0) & (traj['LeadTTCRaw3'] != 999)]['RearTTCRaw2']
+        case6LeftRear = traj[(traj['LeftRearTTCRaw1'] == 999) & (traj['LeftRearTTCRaw2'] != 999) &
+                             (traj['LeftRearTTCRaw2'] != -1) & (traj['LeftRearTTCRaw3'] < 0) &
+                             (traj['LeftRearTTCRaw3'] != 999)]['RearTTCRaw2']
+        case6LeftLead = traj[(traj['LeftLeadTTCRaw1'] == 999) & (traj['LeftLeadTTCRaw2'] != 999) &
+                             (traj['LeftLeadTTCRaw2'] != -1) & (traj['LeftLeadTTCRaw3'] < 0) &
+                             (traj['LeftLeadTTCRaw3'] != 999)]['LeftLeadTTCRaw2']
+        case6LeftAlongside = traj[(traj['LeftAlongsideTTCRaw1'] == 999) & (traj['LeftAlongsideTTCRaw2'] != 999) &
+                                  (traj['LeftAlongsideTTCRaw2'] != -1) & (traj['LeftAlongsideTTCRaw3'] < 0) &
+                                  (traj['LeftAlongsideTTCRaw3'] != 999)]['LeftAlongsideTTCRaw2']
+
+        case7Rear = traj[(traj['RearTTCRaw1'] == 999) & (traj['RearTTCRaw2'] != 999) & (traj['RearTTCRaw2'] == -1) &
+                         (traj['RearTTCRaw3'] < 0) & (traj['RearTTCRaw3'] != 999)]['RearTTCRaw1']
+        case7Lead = traj[(traj['LeadTTCRaw1'] == 999) & (traj['LeadTTCRaw2'] != 999) & (traj['LeadTTCRaw2'] == -1) &
+                         (traj['LeadTTCRaw3'] < 0) & (traj['LeadTTCRaw3'] != 999)]['RearTTCRaw1']
+        case7LeftRear = traj[(traj['LeftRearTTCRaw1'] == 999) & (traj['LeftRearTTCRaw2'] != 999) &
+                             (traj['LeftRearTTCRaw2'] == -1) & (traj['LeftRearTTCRaw3'] < 0) &
+                             (traj['LeftRearTTCRaw3'] != 999)]['RearTTCRaw1']
+        case7LeftLead = traj[(traj['LeftLeadTTCRaw1'] == 999) & (traj['LeftLeadTTCRaw2'] != 999) &
+                             (traj['LeftLeadTTCRaw2'] == -1) & (traj['LeftLeadTTCRaw3'] < 0) &
+                             (traj['LeftLeadTTCRaw3'] != 999)]['LeftLeadTTCRaw1']
+        case7LeftAlongside = traj[(traj['LeftAlongsideTTCRaw1'] == 999) & (traj['LeftAlongsideTTCRaw2'] != 999) &
+                                  (traj['LeftAlongsideTTCRaw2'] == -1) & (traj['LeftAlongsideTTCRaw3'] < 0) &
+                                  (traj['LeftAlongsideTTCRaw3'] != 999)]['LeftAlongsideTTCRaw1']
+
+        case8Rear = traj[(traj['RearTTCRaw1'] == 999) & (traj['RearTTCRaw2'] != 999) & (traj['RearTTCRaw2'] != -1) &
+                         (traj['RearTTCRaw3'] > 0) & (traj['RearTTCRaw3'] != 999)]['RearTTCRaw2']
+        case8Lead = traj[(traj['LeadTTCRaw1'] == 999) & (traj['LeadTTCRaw2'] != 999) & (traj['LeadTTCRaw2'] != -1) &
+                         (traj['LeadTTCRaw3'] > 0) & (traj['LeadTTCRaw3'] != 999)]['RearTTCRaw2']
+        case8LeftRear = traj[(traj['LeftRearTTCRaw1'] == 999) & (traj['LeftRearTTCRaw2'] != 999) &
+                             (traj['LeftRearTTCRaw2'] != -1) & (traj['LeftRearTTCRaw3'] > 0) &
+                             (traj['LeftRearTTCRaw3'] != 999)]['RearTTCRaw2']
+        case8LeftLead = traj[(traj['LeftLeadTTCRaw1'] == 999) & (traj['LeftLeadTTCRaw2'] != 999) &
+                             (traj['LeftLeadTTCRaw2'] != -1) & (traj['LeftLeadTTCRaw3'] > 0) &
+                             (traj['LeftLeadTTCRaw3'] != 999)]['LeftLeadTTCRaw2']
+        case8LeftAlongside = traj[(traj['LeftAlongsideTTCRaw1'] == 999) & (traj['LeftAlongsideTTCRaw2'] != 999) &
+                                  (traj['LeftAlongsideTTCRaw2'] != -1) & (traj['LeftAlongsideTTCRaw3'] > 0) &
+                                  (traj['LeftAlongsideTTCRaw3'] != 999)]['LeftAlongsideTTCRaw2']
+
         case1 = pd.concat([case1Rear, case1Lead, case1LeftRear, case1LeftLead, case1LeftAlongside],
                           ignore_index=True)
         case2 = pd.concat([case2Rear, case2Lead, case2LeftRear, case2LeftLead, case2LeftAlongside],
@@ -113,6 +172,14 @@ def main():
         case3 = pd.concat([case3Rear, case3Lead, case3LeftRear, case3LeftLead, case3LeftAlongside],
                           ignore_index=True)
         case4 = pd.concat([case4Rear, case4Lead, case4LeftRear, case4LeftLead, case4LeftAlongside],
+                          ignore_index=True)
+        case5 = pd.concat([case5Rear, case5Lead, case5LeftRear, case5LeftLead, case5LeftAlongside],
+                          ignore_index=True)
+        case6 = pd.concat([case6Rear, case6Lead, case6LeftRear, case6LeftLead, case6LeftAlongside],
+                          ignore_index=True)
+        case7 = pd.concat([case7Rear, case7Lead, case7LeftRear, case7LeftLead, case7LeftAlongside],
+                          ignore_index=True)
+        case8 = pd.concat([case8Rear, case8Lead, case8LeftRear, case8LeftLead, case8LeftAlongside],
                           ignore_index=True)
 
         result = {
@@ -122,7 +189,11 @@ def main():
             "case1": len(case1),
             "case2": len(case2),
             "case3": len(case3),
-            "case4": len(case4)
+            "case4": len(case4),
+            "case5": len(case5),
+            "case6": len(case6),
+            "case7": len(case7),
+            "case8": len(case8)
         }
 
         output_result = pd.DataFrame(data=result, index=[0])

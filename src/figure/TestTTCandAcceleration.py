@@ -74,6 +74,10 @@ def Test(traj, partial=True):
     ttc3 = pd.concat([ttc3Rear, ttc3Lead, ttc3LeftRear, ttc3LeftLead, ttc3LeftAlongside], ignore_index=True)
     acc3 = pd.concat([acc3Rear, acc3Lead, acc3LeftRear, acc3LeftLead, acc3LeftAlongside], ignore_index=True)
 
+    length1 = len(ttc1)
+    length2 = len(ttc2)
+    length3 = len(ttc3)
+
     # Pearson和Spearman检验
     try:
         p1, p1_value = pearsonr(ttc1, acc1)
@@ -118,7 +122,7 @@ def Test(traj, partial=True):
         logger.warning(f"Error calculating Spearman correlation for ttc3 and acc3: {e}, ttc3: {ttc3}, acc3: {acc3}")
 
     # 协整检验
-    if False:
+    if not partial:
         # 分割时间序列成四段
         n_splits = 4
 
@@ -184,7 +188,7 @@ def Test(traj, partial=True):
                            f"error track id: {traj['trackId'].values[0]}")
             logger.warning(f"Error calculating DTW for ttc3 and acc3: {e}, ttc3: {ttc3}, acc3: {acc3}")
 
-    return p1, p2, p3, s1, s2, s3, results_df1, results_df2, results_df3, d1, d2, d3
+    return p1, p2, p3, s1, s2, s3, results_df1, results_df2, results_df3, d1, d2, d3, length1, length2, length3
 
 
 def main():
@@ -210,7 +214,7 @@ def main():
         logger.info("Loading {}", file)
 
         total_p1, total_p2, total_p3, total_s1, total_s2,\
-            total_s3, coint1, coint2, coint3, _, _, _ = Test(trajectory, partial=False)
+            total_s3, coint1, coint2, coint3, _, _, _ ,_, _, _ = Test(trajectory, partial=False)
         logger.info("TTC1 total info: Pearson Correlation: {}, Spearman Correlation: {}", total_p1, total_s1)
         logger.info("TTC2 total info: Pearson Correlation: {}, Spearman Correlation: {}", total_p2, total_s2)
         logger.info("TTC3 total info: Pearson Correlation: {}, Spearman Correlation: {}", total_p3, total_s3)
@@ -231,25 +235,27 @@ def main():
             if not singleTraj.empty \
                     and (row['recordingId'] != singleTraj['recordingId'].values[0]
                          or row['trackId'] != singleTraj['trackId'].values[0]):
-                logger.info("Current recording id is {}, current track id is {}", singleTraj['recordingId'],
-                            singleTraj['trackId'])
+                logger.info("Current recording id is {}, current track id is {}", singleTraj['recordingId'].values[0],
+                            singleTraj['trackId'].values[0])
                 file_name = singlepath + f"{singleTraj['recordingId'].values[0]}_" \
                                          f"{singleTraj['trackId'].values[0]}_single_trajectory.csv"
                 singleTraj.to_csv(file_name, index=False)
-                p1, p2, p3, s1, s2, s3, _, _, _, d1, d2, d3 = Test(singleTraj)
+                p1, p2, p3, s1, s2, s3, _, _, _, d1, d2, d3, l1, l2, l3 = Test(singleTraj)
                 temp = {
-                    "recordingId": singleTraj["recordingId"],
-                    "trackId": singleTraj["trackId"],
+                    "recordingId": singleTraj["recordingId"].values[0],
+                    "trackId": singleTraj["trackId"].values[0],
                     "Pearson1": p1,
                     "Pearson2": p2,
                     "Pearson3": p3,
                     "Spearman1": s1,
                     "Spearman2": s2,
                     "Spearman3": s3,
-                    "DTW_Distance1": d1,
-                    "DTW_Distance2": d2,
-                    "DTW_Distance3": d3,
-                    "length": len(singleTraj)
+                    "DTW_Distance1": d1/l1 if l1 != 0 else 0,
+                    "DTW_Distance2": d2/l2 if l2 != 0 else 0,
+                    "DTW_Distance3": d3/l3 if l3 != 0 else 0,
+                    "length1": l1,
+                    "length2": l2,
+                    "length3": l3
                 }
                 coffList = pd.concat([coffList, pd.DataFrame(data=temp, index=[0])], ignore_index=True)
                 temp = {}
@@ -264,3 +270,4 @@ def main():
 
 if __name__ == '__main__':
     main()
+    logger.info("Finished.")

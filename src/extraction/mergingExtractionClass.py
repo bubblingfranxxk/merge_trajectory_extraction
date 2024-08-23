@@ -14,7 +14,6 @@ import shutil
 import matplotlib.pyplot as plt
 
 
-
 class MergingExtractionClass(object):
     def __init__(self, config):
         self.config = config
@@ -227,15 +226,26 @@ class MergingExtractionClass(object):
         self.vehicleType = self.Meta['class'].values[0]
 
         for vehicleType in self.surroundingVehiclesLabel:
+            # if vehicleType != "leftAlongsideId":
+            #     continue
+            # if ';' not in row[vehicleType]:
+            #     continue
             # print(vehicleType)
             # 周围车辆的属性
-            otherVehicleMeta = tracksMeta[tracksMeta['trackId'] == row[vehicleType]]
+            otherVehicleMeta = \
+                tracksMeta[tracksMeta['trackId'] ==
+                           int(row[vehicleType].split(';')[0]
+                               if vehicleType == "leftAlongsideId" and ';' in str(row[vehicleType])
+                               else row[vehicleType])]
             # otherLength = otherVehicleMeta['length'].values[0]
             # otherWidth = otherVehicleMeta['width'].values[0]
             # otherType = otherVehicleMeta['class'].values[0]
 
-            otherVehicleThisFrame = self.otherVehicle[(self.otherVehicle['trackId'] == row[vehicleType]) &
-                                                      (self.otherVehicle['frame'] == row['frame'])]
+            otherVehicleThisFrame = \
+                self.otherVehicle[(self.otherVehicle['trackId'] ==
+                                   int(row[vehicleType].split(';')[0]
+                                       if vehicleType == "leftAlongsideId" and ';' in str(row[vehicleType])
+                                       else row[vehicleType])) & (self.otherVehicle['frame'] == row['frame'])]
             if otherVehicleThisFrame.empty or row[vehicleType] == -1 or row[vehicleType] == "-999":
                 continue
             # print('xcenter:')
@@ -263,9 +273,10 @@ class MergingExtractionClass(object):
 
             if (row["recordingId"] in self.recordingMapToLocation["2"] or row["recordingId"] in self.
                     recordingMapToLocation["3"] or row["recordingId"] in self.recordingMapToLocation["5"]) \
-                    and positionLabel != "on -2":
+                    and (positionLabel != "on -2" and positionLabel != "on entry" and positionLabel != "on onramp"):
                 continue
-            elif row["recordingId"] in self.recordingMapToLocation["6"] and positionLabel != "on -3":
+            elif row["recordingId"] in self.recordingMapToLocation["6"] and \
+                    (positionLabel != "on -3" and positionLabel != "on entry" and positionLabel != "on onramp"):
                 continue
 
             status = "Exist"
@@ -273,13 +284,15 @@ class MergingExtractionClass(object):
             # 速度差和加速度差统一为汇入车-其他车
             deltaV = -(otherVehicleThisFrame["xVelocity"].values[0] * math.cos(theta) + otherVehicleThisFrame[
                 "yVelocity"].values[0] * math.sin(theta)) + row["xVelocity"] * math.cos(theta) + row["yVelocity"] * \
-                math.sin(theta)
+                     math.sin(theta)
             deltaAcce = -(otherVehicleThisFrame["xAcceleration"].values[0] * math.cos(theta) + otherVehicleThisFrame[
-                    "yAcceleration"].values[0] * math.sin(theta)) + row["xAcceleration"] * math.cos(theta) + row[
-                                         "yAcceleration"] * math.sin(theta)
+                "yAcceleration"].values[0] * math.sin(theta)) + row["xAcceleration"] * math.cos(theta) + row[
+                            "yAcceleration"] * math.sin(theta)
             thisFrame = self.laneChangeFrame["frame"].values[0]
             if vehicleType == "leadId":
                 self.leadVehicle = row[vehicleType]
+                # logger.warning(f"recording id {row['recordingId']}, track id {row['trackId']}. "
+                #                f"lead vehicle is {self.leadVehicle}")
                 self.leadDeltaX = distance
                 self.leadDeltaV = deltaV
                 self.leadDeltaAcce = deltaAcce
@@ -339,15 +352,15 @@ class MergingExtractionClass(object):
 
         surroundingInfo = {"vehicleNums": len(trajectoryInfo.keys()), "trajectory": trajectoryInfo}
         return surroundingInfo, self.rearVehicle, self.rearDeltaX, self.rearDeltaV, self.rearDeltaAcce, \
-            self.rearTTC_V1, self.rearTTC_V2, self.rearTTC_V3, \
-            self.leadVehicle, self.leadDeltaX, self.leadDeltaV, self.leadDeltaAcce, self.leadTTC_V1, self.leadTTC_V2, \
-            self.leadTTC_V3, \
-            self.leftrearVehicle, self.leftrearDeltaX, self.leftrearDeltaV, self.leftrearDeltaAcce, \
-            self.leftrearTTC_V1, self.leftrearTTC_V2, self.leftrearTTC_V3, \
-            self.leftleadVehicle, self.leftleadDeltaX, self.leftleadDeltaV, self.leftleadDeltaAcce, \
-            self.leftleadTTC_V1, self.leftleadTTC_V2, self.leftleadTTC_V3, \
-            self.leftalongsideVehicle, self.leftalongsideDeltaX, self.leftalongsideDeltaV, \
-            self.leftalongsideDeltaAcce, self.leftalongsideTTC_V1, self.leftalongsideTTC_V2, self.leftalongsideTTC_V3
+               self.rearTTC_V1, self.rearTTC_V2, self.rearTTC_V3, \
+               self.leadVehicle, self.leadDeltaX, self.leadDeltaV, self.leadDeltaAcce, self.leadTTC_V1, self.leadTTC_V2, \
+               self.leadTTC_V3, \
+               self.leftrearVehicle, self.leftrearDeltaX, self.leftrearDeltaV, self.leftrearDeltaAcce, \
+               self.leftrearTTC_V1, self.leftrearTTC_V2, self.leftrearTTC_V3, \
+               self.leftleadVehicle, self.leftleadDeltaX, self.leftleadDeltaV, self.leftleadDeltaAcce, \
+               self.leftleadTTC_V1, self.leftleadTTC_V2, self.leftleadTTC_V3, \
+               self.leftalongsideVehicle, self.leftalongsideDeltaX, self.leftalongsideDeltaV, \
+               self.leftalongsideDeltaAcce, self.leftalongsideTTC_V1, self.leftalongsideTTC_V2, self.leftalongsideTTC_V3
 
     def getTTC_V1(self):
         if self.leadVehicle and self.leadDeltaV > 0:
@@ -391,30 +404,30 @@ class MergingExtractionClass(object):
         blist = []
 
         BX1 = otherVehicleThisFrame['xCenter'].values[0] + 0.5 * length_other * math.cos(other_heading) \
-            + 0.5 * width_other * math.sin(other_heading)
+              + 0.5 * width_other * math.sin(other_heading)
         BY1 = otherVehicleThisFrame['yCenter'].values[0] + 0.5 * length_other * math.sin(other_heading) \
-            - 0.5 * width_other * math.cos(other_heading)
+              - 0.5 * width_other * math.cos(other_heading)
         B1 = {'x': BX1, 'y': BY1}
         blist.append(B1)
 
         BX2 = otherVehicleThisFrame['xCenter'].values[0] - 0.5 * length_other * math.cos(other_heading) \
-            + 0.5 * width_other * math.sin(other_heading)
+              + 0.5 * width_other * math.sin(other_heading)
         BY2 = otherVehicleThisFrame['yCenter'].values[0] - 0.5 * length_other * math.sin(other_heading) \
-            - 0.5 * width_other * math.cos(other_heading)
+              - 0.5 * width_other * math.cos(other_heading)
         B2 = {'x': BX2, 'y': BY2}
         blist.append(B2)
 
         BX3 = otherVehicleThisFrame['xCenter'].values[0] - 0.5 * length_other * math.cos(other_heading) \
-            - 0.5 * width_other * math.sin(other_heading)
+              - 0.5 * width_other * math.sin(other_heading)
         BY3 = otherVehicleThisFrame['yCenter'].values[0] - 0.5 * length_other * math.sin(other_heading) \
-            + 0.5 * width_other * math.cos(other_heading)
+              + 0.5 * width_other * math.cos(other_heading)
         B3 = {'x': BX3, 'y': BY3}
         blist.append(B3)
 
         BX4 = otherVehicleThisFrame['xCenter'].values[0] + 0.5 * length_other * math.cos(other_heading) \
-            - 0.5 * width_other * math.sin(other_heading)
+              - 0.5 * width_other * math.sin(other_heading)
         BY4 = otherVehicleThisFrame['yCenter'].values[0] + 0.5 * length_other * math.cos(other_heading) \
-            + 0.5 * width_other * math.cos(other_heading)
+              + 0.5 * width_other * math.cos(other_heading)
         B4 = {'x': BX4, 'y': BY4}
         blist.append(B4)
 
@@ -434,12 +447,12 @@ class MergingExtractionClass(object):
                 a1 = VA['y'] - VB['y']
                 b1 = VB['x'] - VA['x']
                 c1 = point['x'] * (VA['y'] - VB['y']) + point['y'] * (VB['x'] - VA['x'])
-                a2 = blist[i-1]['y'] - blist[i]['y']
-                b2 = blist[i]['x'] - blist[i-1]['x']
-                c2 = blist[i-1]['x'] * (blist[i-1]['y'] - blist[i]['y']) + blist[i-1]['y'] * (blist[i]['x'] -
-                                                                                              blist[i-1]['x'])
+                a2 = blist[i - 1]['y'] - blist[i]['y']
+                b2 = blist[i]['x'] - blist[i - 1]['x']
+                c2 = blist[i - 1]['x'] * (blist[i - 1]['y'] - blist[i]['y']) + blist[i - 1]['y'] * (blist[i]['x'] -
+                                                                                                    blist[i - 1]['x'])
                 A = np.array([[a1, b1],
-                             [a2, b2]])
+                              [a2, b2]])
                 B = np.array([c1, c2])
                 solution = np.linalg.solve(A, B)
                 min_x = min(b['x'] for b in blist[:-1])
@@ -448,7 +461,7 @@ class MergingExtractionClass(object):
                 max_y = max(b['y'] for b in blist[:-1])
                 # print(min_x, max_x, min_y, max_y)
                 if max_x >= solution[0] >= min_x and max_y >= solution[1] >= min_y:
-                    dist = math.sqrt((point['x'] - solution[0])**2 + (point['y'] - solution[1])**2)
+                    dist = math.sqrt((point['x'] - solution[0]) ** 2 + (point['y'] - solution[1]) ** 2)
                     dist_list.append(dist)
 
         for point in blist:
@@ -456,10 +469,10 @@ class MergingExtractionClass(object):
                 a1 = VA['y'] - VB['y']
                 b1 = VB['x'] - VA['x']
                 c1 = point['x'] * (VA['y'] - VB['y']) + point['y'] * (VB['x'] - VA['x'])
-                a2 = alist[i-1]['y'] - alist[i]['y']
-                b2 = alist[i]['x'] - alist[i-1]['x']
-                c2 = alist[i-1]['x'] * (alist[i-1]['y'] - alist[i]['y']) + alist[i-1]['y'] * (alist[i]['x'] -
-                                                                                              alist[i-1]['x'])
+                a2 = alist[i - 1]['y'] - alist[i]['y']
+                b2 = alist[i]['x'] - alist[i - 1]['x']
+                c2 = alist[i - 1]['x'] * (alist[i - 1]['y'] - alist[i]['y']) + alist[i - 1]['y'] * (alist[i]['x'] -
+                                                                                                    alist[i - 1]['x'])
                 A = np.array([[a1, b1],
                               [a2, b2]])
                 B = np.array([c1, c2])
@@ -472,7 +485,7 @@ class MergingExtractionClass(object):
                     dist = math.sqrt((point['x'] - solution[0]) ** 2 + (point['y'] - solution[1]) ** 2)
                     dist_list.append(dist)
         if dist_list:
-            return min(dist_list)/math.sqrt((VA['x'] - VB['x'])**2 + (VA['y'] - VB['y'])**2)
+            return min(dist_list) / math.sqrt((VA['x'] - VB['x']) ** 2 + (VA['y'] - VB['y']) ** 2)
         else:
             return -1
 
@@ -505,7 +518,7 @@ class MergingExtractionClass(object):
     def run(self):
         if self.savemode == 'test':
             self.create_output_folder(self.rootPath, 'output')
-            path = self.rootPath+"/output/"
+            path = self.rootPath + "/output/"
         else:
             self.create_output_folder(self.rootPath, 'result')
             path = self.savePath

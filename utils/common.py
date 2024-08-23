@@ -210,7 +210,11 @@ def ellipses_tangent_time(a1, b1, theta1, x1, y1, vx, vy, a2, b2, theta2, x2, y2
 
     # 找到相切时刻
     t_solutions = fsolve(tangent_equation, guess_t, fprime=None, col_deriv=False, maxfev=1000)
-    t_solution = min((x for x in t_solutions if x > 0), default=None)
+    temp = min((x for x in t_solutions if x > 0), default=None)
+    if temp is None:
+        t_solution = t_solutions[0]
+    else:
+        t_solution = temp
 
     # 检查解是否有效
     if t_solution is not None:
@@ -219,7 +223,7 @@ def ellipses_tangent_time(a1, b1, theta1, x1, y1, vx, vy, a2, b2, theta2, x2, y2
         y_t = y2 + vy * t_solution
         return t_solution, x_t, y_t
     else:
-        return 999, None, None
+        return None, None, None
 
 
 def sigmoid_gradient(x):
@@ -277,7 +281,7 @@ def reload_ellipses_tangent_time(a1, b1, theta1, x1, y1, vx, vy, a2, b2, theta2,
         return np.abs(eq1_value) + np.abs(eq2_value)
 
     # 尝试不同的初始猜测值
-    t_values = np.linspace(0, 50, 100)  # 从0到10，取100个值作为初始猜测值
+    t_values = np.linspace(10, 50, 100)  # 从0到10，取100个值作为初始猜测值
     best_t = None
     best_value = np.inf
 
