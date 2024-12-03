@@ -29,11 +29,11 @@ class TransformerGenerator(nn.Module):
     def forward(self, noise, condition):
         # 结合条件信息
         input_data = torch.cat((noise, condition), dim=2)  # [batch_size, seq_len, input_dim + condition_dim]
-        print(f"input_data shape: {input_data.shape}")  # 检查输入维度
+        # print(f"input_data shape: {input_data.shape}")  # 检查输入维度
 
         # 输入数据经过线性层嵌入 d_model 维度
         embedded_data = self.fc_in(input_data)  # [batch_size, seq_len, d_model]
-        print(f"embedded_data shape after fc_in: {embedded_data.shape}")  # 检查嵌入后的维度
+        # print(f"embedded_data shape after fc_in: {embedded_data.shape}")  # 检查嵌入后的维度
 
         # Transformer 编码器需要 [seq_len, batch_size, d_model] 格式
         transformer_output = self.transformer_encoder(embedded_data.permute(1, 0, 2))  # [seq_len, batch_size, d_model]
@@ -64,7 +64,7 @@ class Discriminator(nn.Module):
 
 # CGAN 模型：生成器和判别器
 class CGAN:
-    def __init__(self, generator, discriminator, gen_lr=0.0002, disc_lr=0.0002):
+    def __init__(self, generator, discriminator, gen_lr=0.00001, disc_lr=0.00001):
         self.generator = generator
         self.discriminator = discriminator
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -118,21 +118,21 @@ class CGAN:
             gen_loss.backward()
             self.optim_G.step()
 
-            if epoch % 100 == 0:
-                print(f"Epoch [{epoch}/{epochs}] | D Loss: {disc_loss.item()} | G Loss: {gen_loss.item()}")
+            if epoch % 10 == 0:
+                logger.info(f"Epoch [{epoch}/{epochs}] | D Loss: {disc_loss.item()} | G Loss: {gen_loss.item()}")
 
 
 
 # 参数定义
 input_dim = 12  # 输入时间序列的维度
-seq_len = 128  # 时间序列长度
+seq_len = 10  # 时间序列长度
 d_model = 64  # Transformer 的隐藏维度
 num_heads = 8  # 多头注意力头的数量
 num_layers = 2  # Transformer 编码器层数
 hidden_dim = 128  # 判别器的 LSTM 隐藏层维度
-noise_dim = 19  # 生成器输入噪声的维度
-output_dim = 7  # 生成的时间序列维度
-condition_dim = 7  # 条件维度，例如特征、标签等
+noise_dim = 20  # 生成器输入噪声的维度
+output_dim = 12  # 生成的时间序列维度
+condition_dim = 8  # 条件维度，例如特征、标签等
 
 # 初始化生成器和判别器
 generator = TransformerGenerator(input_dim + condition_dim, seq_len, d_model, num_heads, num_layers, output_dim)
@@ -144,9 +144,9 @@ cgan = CGAN(generator, discriminator)
 # 生成随机时间序列数据和条件
 real_data = torch.randn(32, seq_len, output_dim)  # [batch_size, seq_len, output_dim]
 condition = torch.randn(32, seq_len, condition_dim)  # [batch_size, seq_len, condition_dim]
-logger.info(real_data.shape)
+# logger.info(real_data.shape)
 
 # 训练 CGAN
-cgan.train(real_data, condition, noise_dim, epochs=1000)
+cgan.train(real_data, condition, noise_dim, epochs=10000)
 
 
