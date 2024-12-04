@@ -20,6 +20,10 @@ input_columns = ['xCenter', 'yCenter', 'heading', 'lonVelocity', 'latVelocity',
 
 ttc_columns = ['RearTTCRaw3', 'LeadTTCRaw3', 'LeftRearTTCRaw3', 'LeftLeadTTCRaw3', 'LeftAlongsideTTCRaw3']
 
+columns_to_check = ['RearTTCRaw2', 'LeadTTCRaw2']
+
+value_range = [0, 3]
+
 
 def uniform_sampling(data, target_length=50):
     """
@@ -47,6 +51,11 @@ def main():
         file_path = os.path.join(singleTrajPath, file)
         df = pd.read_csv(file_path)  # 读取 CSV 数据
         logger.info(f"{file} is Loading...")
+
+        # 检查指定列是否有值在特定范围内
+        condition_met = df[columns_to_check].apply(lambda x: (x > value_range[0]) & (x < value_range[1])).any().any()
+        if not condition_met:
+            continue
 
         result = uniform_sampling(df)
         result.to_csv(outputPath+file)
