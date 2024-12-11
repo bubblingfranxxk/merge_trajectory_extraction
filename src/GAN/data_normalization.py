@@ -40,8 +40,9 @@ def custom_normalize_ttc(ttc_values):
     """
     自定义归一化公式：exp(-x)。
     """
-    if ttc_values.any() < 0:
-        logger.warning("Negative value !!!")
+
+    # 将负值转换为999
+    ttc_values = np.where(ttc_values < 0, 999, ttc_values)
     return np.exp(-ttc_values)
 
 
