@@ -20,12 +20,14 @@ input_columns = ['xCenter', 'yCenter', 'heading', 'lonVelocity', 'latVelocity',
 
 ttc_columns = ['RearTTCRaw3', 'LeadTTCRaw3', 'LeftRearTTCRaw3', 'LeftLeadTTCRaw3', 'LeftAlongsideTTCRaw3']
 
-columns_to_check = ['RearTTCRaw2', 'LeadTTCRaw2']
+columns_to_check = ['RearTTCRaw3', 'LeadTTCRaw3']
 
 value_range = [0, 3]
 
+target_length = 25
 
-def uniform_sampling(data, target_length=50):
+
+def uniform_sampling(data, target_length=target_length):
     """
     等间隔抽取数据使其变为目标长度。
 
@@ -74,7 +76,7 @@ def main():
     # 构建总体的DataFrame
     compressed_columns = id_columns
     for col in input_columns:
-        compressed_columns.extend([f"{col}_{i + 1}" for i in range(50)])
+        compressed_columns.extend([f"{col}_{i + 1}" for i in range(target_length)])
     compressed_df = pd.DataFrame(compress_data, columns=compressed_columns)
     compressed_df.to_csv(assetPath+"compressed_data.csv")
 

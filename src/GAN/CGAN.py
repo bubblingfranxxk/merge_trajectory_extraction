@@ -12,6 +12,11 @@ from loguru import logger
 import os
 import pandas as pd
 from torch.utils.data import Dataset, DataLoader
+from DataExtraction import target_length
+import csv
+import matplotlib.pyplot as plt
+from scipy.stats import norm
+os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 
 
 class TimeSeriesDataset(Dataset):
@@ -33,7 +38,7 @@ class TransformerGenerator(nn.Module):
         self.d_model = d_model
 
         # Transformer 编码器
-        self.encoder_layer = nn.TransformerEncoderLayer(d_model=d_model, nhead=num_heads)
+        self.encoder_layer = nn.TransformerEncoderLayer(d_model=d_model, nhead=num_heads, batch_first=True)
         self.transformer_encoder = nn.TransformerEncoder(self.encoder_layer, num_layers=num_layers)
 
         # 线性层
@@ -78,25 +83,84 @@ class Discriminator(nn.Module):
 
 # CGAN 模型：生成器和判别器
 class CGAN:
-    def __init__(self, generator, discriminator, gen_lr=0.00001, disc_lr=0.00001):
+    def __init__(self, generator, discriminator, data_columns, feature_columns, gen_lr=0.0001, disc_lr=0.00001):
+        self.rootPath = os.path.abspath('../../')
+        self.assetPath = self.rootPath + "/asset/"
+        self.data_columns = data_columns
+        self.feature_columns = feature_columns
         self.generator = generator
         self.discriminator = discriminator
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         self.generator.to(self.device)
         self.discriminator.to(self.device)
+        self.epoch = 0
+        self.interval = 10
 
         # 优化器和损失函数
-        self.optim_G = optim.Adam(self.generator.parameters(), lr=gen_lr)
-        self.optim_D = optim.Adam(self.discriminator.parameters(), lr=disc_lr)
+        self.optim_G = optim.Adam(self.generator.parameters(), lr=gen_lr, weight_decay=1e-4)
+        self.optim_D = optim.Adam(self.discriminator.parameters(), lr=disc_lr, weight_decay=1e-4)
         self.criterion = nn.BCELoss()
 
-    def train(self, dataloader, noise_dim, condition_dim, epochs=1000):
+    def save_losses_to_csv(self, epoch, d_loss, g_loss, csv_file="losses.csv"):
+        """保存损失值到 CSV 文件"""
+        file_exists = os.path.isfile(csv_file)
+        with open(csv_file, mode='a', newline='') as f:
+            writer = csv.writer(f)
+            if not file_exists:
+                writer.writerow(['Epoch', 'D_LOSS', 'G_LOSS'])
+            writer.writerow([epoch, d_loss, g_loss])
+
+    def save_fake_data_to_csv(self, fake_data, condition, epoch, feature_columns, output_folder="output"):
+        """保存生成数据和条件到 CSV 文件"""
+        os.makedirs(output_folder, exist_ok=True)
+        fake_data_file = os.path.join(output_folder, f"fake_data_epoch_{epoch}.csv")
+        condition_file = os.path.join(output_folder, f"condition_epoch_{epoch}.csv")
+
+        # 保存 fake_data
+        fake_df = pd.DataFrame(fake_data.detach().cpu().numpy().reshape(-1, fake_data.shape[-1]), columns=feature_columns)
+        fake_df.to_csv(fake_data_file, index=False)
+
+        # 保存 condition
+        condition_df = pd.DataFrame(condition.cpu().numpy().reshape(-1, condition.shape[-1]), columns=['Condition'])
+        condition_df.to_csv(condition_file, index=False)
+
+    def plot_feature_distributions(self, fake_data, feature_columns, output_folder="plots"):
+        """绘制特征分布直方图和拟合曲线"""
+        os.makedirs(output_folder, exist_ok=True)
+        fake_data_np = fake_data.detach().cpu().numpy()
+
+        for i, feature in enumerate(feature_columns):
+            plt.figure()
+            data = fake_data_np[:, :, i].flatten()  # 提取特定特征的数据
+            mu, std = norm.fit(data)  # 拟合正态分布
+            plt.hist(data, bins=30, density=True, alpha=0.6, color='g', label="Histogram")
+
+            # 绘制拟合曲线
+            xmin, xmax = plt.xlim()
+            x = np.linspace(xmin, xmax, 100)
+            p = norm.pdf(x, mu, std)
+            plt.plot(x, p, 'k', linewidth=2, label=f"Fit: μ={mu:.2f}, σ={std:.2f}")
+
+            plt.title(f"Feature: {feature}")
+            plt.xlabel("Value")
+            plt.ylabel("Density")
+            plt.legend()
+            plt.grid(True)
+
+            # 保存图片
+            plot_path = os.path.join(output_folder, f"{feature}_distribution_{self.epoch}.png")
+            plt.savefig(plot_path)
+            plt.close()
+
+    def train(self, dataloader, noise_dim, epochs=1000):
         for epoch in range(epochs):
-            count = 1
+            all_fake_data = []  # 用于保存所有的 fake_data
+            all_conditions = []  # 用于保存所有的 condition
+            save_available = False
+            if epoch % self.interval == 0:
+                save_available = True
             for real_data, condition in dataloader:
                 batch_size = real_data.size(0)
-                # logger.debug(f"train round {count}.")
-                count += 1
                 real_data = real_data.to(self.device)
                 condition = condition.to(self.device)
                 # logger.debug(f"real_data shape: {real_data.shape}")
@@ -138,7 +202,25 @@ class CGAN:
                 gen_loss.backward()
                 self.optim_G.step()
 
-            if epoch % 10 == 0:
+                if save_available:
+                    # 保存每个 batch 的 fake_data 和 condition
+                    all_fake_data.append(fake_data.detach().cpu())
+                    all_conditions.append(condition.detach().cpu())
+
+            if epoch % self.interval == 0:
+                # 将保存的列表转换为张量
+                all_fake_data = torch.cat(all_fake_data, dim=0)  # 拼接所有的 batch
+                all_conditions = torch.cat(all_conditions, dim=0)
+                self.epoch = epoch
+                # 保存损失值到 CSV
+                self.save_losses_to_csv(epoch, disc_loss.item(), gen_loss.item(), csv_file=self.assetPath + "losses.csv")
+
+                # 保存生成数据到 CSV
+                self.save_fake_data_to_csv(all_fake_data, all_conditions, epoch, self.data_columns, output_folder=self.assetPath + "/GENERATED_DATA/")
+
+                # 绘制特征分布
+                self.plot_feature_distributions(all_fake_data, self.feature_columns, output_folder=self.assetPath + "/GENERATED_DATA/")
+
                 logger.info(f"Epoch [{epoch}/{epochs}] | D Loss: {disc_loss.item()} | G Loss: {gen_loss.item()}")
 
 
@@ -188,51 +270,53 @@ def load_csv_files_to_tensor(folder_path, seq_len, output_dim, target_columns, c
     return real_data, condition
 
 
-logger.warning(f"cuda available: {torch.cuda.is_available()}.")
+if __name__ == '__main__':
+    logger.warning(f"cuda available: {torch.cuda.is_available()}.")
 
-# 参数定义
-input_dim = 12  # 输入时间序列的维度
-seq_len = 50  # 时间序列长度
-d_model = 64  # Transformer 的隐藏维度
-num_heads = 8  # 多头注意力头的数量
-num_layers = 1  # Transformer 编码器层数
-hidden_dim = 128  # 判别器的 LSTM 隐藏层维度
-noise_dim = 13  # 生成器输入噪声的维度
-output_dim = 12  # 生成的时间序列维度
-condition_dim = 1  # 条件维度，例如特征、标签等
+    # 参数定义
+    input_dim = 12  # 输入时间序列的维度
+    seq_len = target_length  # 时间序列长度
+    d_model = 64  # Transformer 的隐藏维度
+    num_heads = 8  # 多头注意力头的数量
+    num_layers = 1  # Transformer 编码器层数
+    hidden_dim = 128  # 判别器的 LSTM 隐藏层维度
+    noise_dim = 13  # 生成器输入噪声的维度
+    output_dim = 12  # 生成的时间序列维度
+    condition_dim = 1  # 条件维度，例如特征、标签等
 
-batch_size = 32
+    batch_size = 32
 
-# 数据准备
-logger.info(f"Inputing data...")
-folder_path = os.path.abspath('../../') + "/asset/extracted_data/" # 替换为你的文件夹路径
-target_columns = ['xCenter', 'yCenter', 'heading', 'lonVelocity', 'latVelocity',
-                  'lonAcceleration', 'latAcceleration', 'RearTTCRaw3', 'LeadTTCRaw3',
-                  'LeftRearTTCRaw3', 'LeftLeadTTCRaw3', 'LeftAlongsideTTCRaw3']
-condition_column = 'MergingType'
-
-dataset = TimeSeriesDataset(folder_path, seq_len, output_dim, target_columns, condition_column)
-dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
+    # 数据准备
+    logger.info(f"Inputing data...")
+    folder_path = os.path.abspath('../../') + "/asset/extracted_data/" # 替换为你的文件夹路径
+    target_columns = ['xCenter', 'yCenter', 'heading', 'lonVelocity', 'latVelocity',
+                      'lonAcceleration', 'latAcceleration', 'RearTTCRaw3', 'LeadTTCRaw3',
+                      'LeftRearTTCRaw3', 'LeftLeadTTCRaw3', 'LeftAlongsideTTCRaw3']
+    features = ['lonVelocity', 'lonAcceleration', 'latAcceleration']
+    condition_column = 'MergingType'
 
 
-# 初始化生成器和判别器
-logger.info(f"Initialize the generator and discriminator.")
-generator = TransformerGenerator(input_dim + condition_dim, seq_len, d_model, num_heads, num_layers, output_dim)
-discriminator = Discriminator(output_dim + condition_dim, seq_len, hidden_dim, num_layers)
+    dataset = TimeSeriesDataset(folder_path, seq_len, output_dim, target_columns, condition_column)
+    dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
 
-# 初始化 CGAN
-logger.info(f"Initialize CGAM model.")
-cgan = CGAN(generator, discriminator)
 
-# 生成随机时间序列数据和条件
-# real_data = torch.randn(32, seq_len, output_dim)  # [batch_size, seq_len, output_dim]
-# condition = torch.randn(32, seq_len, condition_dim)  # [batch_size, seq_len, condition_dim]
-# logger.info(real_data)
-# logger.warning(condition)
-# logger.info(real_data.shape)
+    # 初始化生成器和判别器
+    logger.info(f"Initialize the generator and discriminator.")
+    generator = TransformerGenerator(input_dim + condition_dim, seq_len, d_model, num_heads, num_layers, output_dim)
+    discriminator = Discriminator(output_dim + condition_dim, seq_len, hidden_dim, num_layers)
 
-# 训练 CGAN
-logger.info(f"Model is training...")
-cgan.train(dataloader, noise_dim, condition_dim, epochs=1000)
+    # 初始化 CGAN
+    logger.info(f"Initialize CGAN model.")
+    cgan = CGAN(generator, discriminator, target_columns, features)
 
+    # 生成随机时间序列数据和条件
+    # real_data = torch.randn(32, seq_len, output_dim)  # [batch_size, seq_len, output_dim]
+    # condition = torch.randn(32, seq_len, condition_dim)  # [batch_size, seq_len, condition_dim]
+    # logger.info(real_data)
+    # logger.warning(condition)
+    # logger.info(real_data.shape)
+
+    # 训练 CGAN
+    logger.info(f"Model is training...")
+    cgan.train(dataloader, noise_dim, epochs=1000)
 
