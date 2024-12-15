@@ -104,7 +104,7 @@ if __name__ == "__main__":
     assetPath = rootPath + "/asset/"
     folder_path = assetPath + "/extracted_data/"
     output_folder = assetPath + "/normalized_data/"  # 如果覆盖原文件，将此参数设为None
-    feature_columns = ['xCenter', 'yCenter', 'heading', 'lonVelocity', 'lonAcceleration', 'latAcceleration']
+    feature_columns = ['traveledDistance', 'latLaneCenterOffset', 'heading', 'lonVelocity', 'lonAcceleration', 'latAcceleration']
     ttc_columns = ['RearTTCRaw3', 'LeadTTCRaw3', 'LeftRearTTCRaw3', 'LeftLeadTTCRaw3', 'LeftAlongsideTTCRaw3']
 
     # 第二步：对数据进行标准化和归一化

@@ -31,17 +31,19 @@ class TimeSeriesDataset(Dataset):
 
 
 class TransformerGenerator(nn.Module):
-    def __init__(self, input_dim, seq_len, d_model, num_heads, num_layers, output_dim):
+    def __init__(self, input_dim, seq_len, d_model, num_heads, num_layers, output_dim, dropout_prob=0.3):
         super(TransformerGenerator, self).__init__()
         self.seq_len = seq_len
         self.input_dim = input_dim
         self.d_model = d_model
+        self.dropout = nn.Dropout(p=dropout_prob)
 
         # Transformer 编码器
         self.encoder_layer = nn.TransformerEncoderLayer(d_model=d_model, nhead=num_heads, batch_first=True)
         self.transformer_encoder = nn.TransformerEncoder(self.encoder_layer, num_layers=num_layers)
 
         # 线性层
+        # logger.debug(input_dim+condition_dim)
         self.fc_in = nn.Linear(input_dim + condition_dim, d_model)  # 注意修改这里的输入维度
         self.fc_out = nn.Linear(d_model, output_dim)
 
@@ -64,10 +66,11 @@ class TransformerGenerator(nn.Module):
 
 # 定义判别器：用于区分真实的时间序列和生成的时间序列
 class Discriminator(nn.Module):
-    def __init__(self, input_dim, seq_len, hidden_dim, num_layers):
+    def __init__(self, input_dim, seq_len, hidden_dim, num_layers, dropout_prob=0.5):
         super(Discriminator, self).__init__()
         self.rnn = nn.LSTM(input_dim, hidden_dim, num_layers, batch_first=True, bidirectional=True)
         self.fc = nn.Linear(hidden_dim * 2, 1)  # 双向 LSTM 乘 2
+        self.dropout = nn.Dropout(p=dropout_prob)
 
     def forward(self, x, condition):
         # 结合条件信息
@@ -83,21 +86,21 @@ class Discriminator(nn.Module):
 
 # CGAN 模型：生成器和判别器
 class CGAN:
-    def __init__(self, generator, discriminator, data_columns, feature_columns, gen_lr=0.0001, disc_lr=0.00001):
+    def __init__(self, generator, discriminator, data_columns, feature_columns, gen_lr=0.00001, disc_lr=0.00001):
         self.rootPath = os.path.abspath('../../')
         self.assetPath = self.rootPath + "/asset/"
         self.data_columns = data_columns
         self.feature_columns = feature_columns
         self.generator = generator
         self.discriminator = discriminator
-        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        self.device = torch.device('cuda' if not torch.cuda.is_available() else 'cpu')
         self.generator.to(self.device)
         self.discriminator.to(self.device)
         self.epoch = 0
         self.interval = 10
 
         # 优化器和损失函数
-        self.optim_G = optim.Adam(self.generator.parameters(), lr=gen_lr, weight_decay=1e-4)
+        self.optim_G = optim.Adam(self.generator.parameters(), lr=gen_lr)
         self.optim_D = optim.Adam(self.discriminator.parameters(), lr=disc_lr, weight_decay=1e-4)
         self.criterion = nn.BCELoss()
 
@@ -164,6 +167,7 @@ class CGAN:
                 real_data = real_data.to(self.device)
                 condition = condition.to(self.device)
                 # logger.debug(f"real_data shape: {real_data.shape}")
+                # logger.debug(type(real_data))
                 # logger.debug(f"condition shape: {condition.shape}")
 
                 # 生成随机噪声
@@ -274,22 +278,22 @@ if __name__ == '__main__':
     logger.warning(f"cuda available: {torch.cuda.is_available()}.")
 
     # 参数定义
-    input_dim = 12  # 输入时间序列的维度
+    input_dim = 11  # 输入时间序列的维度
     seq_len = target_length  # 时间序列长度
     d_model = 64  # Transformer 的隐藏维度
     num_heads = 8  # 多头注意力头的数量
     num_layers = 1  # Transformer 编码器层数
     hidden_dim = 128  # 判别器的 LSTM 隐藏层维度
-    noise_dim = 13  # 生成器输入噪声的维度
-    output_dim = 12  # 生成的时间序列维度
+    noise_dim = 11  # 生成器输入噪声的维度
+    output_dim = 11  # 生成的时间序列维度
     condition_dim = 1  # 条件维度，例如特征、标签等
 
     batch_size = 32
 
     # 数据准备
     logger.info(f"Inputing data...")
-    folder_path = os.path.abspath('../../') + "/asset/extracted_data/" # 替换为你的文件夹路径
-    target_columns = ['xCenter', 'yCenter', 'heading', 'lonVelocity', 'latVelocity',
+    folder_path = os.path.abspath('../../') + "/asset/normalized_data/" # 替换为你的文件夹路径
+    target_columns = ['traveledDistance', 'latLaneCenterOffset', 'heading', 'lonVelocity',
                       'lonAcceleration', 'latAcceleration', 'RearTTCRaw3', 'LeadTTCRaw3',
                       'LeftRearTTCRaw3', 'LeftLeadTTCRaw3', 'LeftAlongsideTTCRaw3']
     features = ['lonVelocity', 'lonAcceleration', 'latAcceleration']
@@ -297,12 +301,12 @@ if __name__ == '__main__':
 
 
     dataset = TimeSeriesDataset(folder_path, seq_len, output_dim, target_columns, condition_column)
-    dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
+    dataloader = DataLoader(dataset, batch_size=batch_size)
 
 
     # 初始化生成器和判别器
     logger.info(f"Initialize the generator and discriminator.")
-    generator = TransformerGenerator(input_dim + condition_dim, seq_len, d_model, num_heads, num_layers, output_dim)
+    generator = TransformerGenerator(input_dim, seq_len, d_model, num_heads, num_layers, output_dim)
     discriminator = Discriminator(output_dim + condition_dim, seq_len, hidden_dim, num_layers)
 
     # 初始化 CGAN

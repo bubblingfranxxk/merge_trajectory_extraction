@@ -8,13 +8,13 @@ import os
 import pandas as pd
 import numpy as np
 from loguru import logger
-from src.figure.TTC_acc_figure import  create_output_folder
+from src.figure.TTC_acc_figure import create_output_folder
 
 # 标识列
 id_columns = ['recordingId', 'trackId', 'frame', 'MergingType']
 
 # 输入压缩列
-input_columns = ['xCenter', 'yCenter', 'heading', 'lonVelocity', 'latVelocity',
+input_columns = ['traveledDistance', 'latLaneCenterOffset', 'heading', 'lonVelocity',
                  'lonAcceleration', 'latAcceleration', 'RearTTCRaw3', 'LeadTTCRaw3',
                  'LeftRearTTCRaw3', 'LeftLeadTTCRaw3', 'LeftAlongsideTTCRaw3']
 
@@ -24,7 +24,7 @@ columns_to_check = ['RearTTCRaw3', 'LeadTTCRaw3']
 
 value_range = [0, 3]
 
-target_length = 25
+target_length = 50
 
 
 def uniform_sampling(data, target_length=target_length):
@@ -42,7 +42,7 @@ def uniform_sampling(data, target_length=target_length):
 def main():
     rootPath = os.path.abspath('../../')
     assetPath = rootPath + "/asset/"
-    singleTrajPath = assetPath + "/single_traj/"
+    singleTrajPath = assetPath + "/adjusted_data/"
     outputPath = assetPath + "/extracted_data/"
     create_output_folder(assetPath, "extracted_data")
     # 获取文件夹中的所有 CSV 文件
