@@ -62,11 +62,14 @@ def analyze_feature_distributions(feature_columns, data_path, output_folder):
 
         logger.info(f"Distribution plot saved for feature '{feature}' at {output_path}")
 
+
 if __name__ == '__main__':
     rootPath = os.path.abspath('../../')
     assetPath = rootPath + "/asset/"
-    traj_path = assetPath + "/extracted_data/"
+    traj_path = assetPath + "/normalized_data/"
     output_folder = assetPath + "/output_analysis/"
-    features = ['lonVelocity', 'lonAcceleration', 'latAcceleration']
+    features = ['traveledDistance', 'latLaneCenterOffset', 'heading', 'lonVelocity',
+                'lonAcceleration', 'latAcceleration', 'RearTTCRaw3', 'LeadTTCRaw3',
+                'LeftRearTTCRaw3', 'LeftLeadTTCRaw3', 'LeftAlongsideTTCRaw3']
 
     analyze_feature_distributions(features, traj_path, output_folder)
