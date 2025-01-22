@@ -5,6 +5,23 @@ import matplotlib.pyplot as plt
 from sklearn.preprocessing import StandardScaler
 from loguru import logger
 from scipy.optimize import fsolve
+import scipy
+
+
+# JS散度公式
+def JS_divergence(p, q):
+    M = (p + q) / 2
+    return 0.5 * scipy.stats.entropy(p, M, base=2) + 0.5 * scipy.stats.entropy(q, M, base=2)
+
+
+def JS_div(arr1, arr2, num_bins, min0, max0):
+    arr1 += 1e-10
+    arr2 += 1e-10
+    bins = np.linspace(min0, max0, num=num_bins)
+    PDF1 = pd.cut(arr1, bins, duplicates="drop").value_counts() / len(arr1)
+    PDF2 = pd.cut(arr2, bins, duplicates="drop").value_counts() / len(arr2)
+    #    return min(JS_divergence(PDF1.values,PDF2.values),1)
+    return JS_divergence(PDF1.values, PDF2.values)
 
 
 # 变道筛选/过滤 把两次压线间隔小于1s的变道删掉前者，看作1次变道
@@ -88,8 +105,8 @@ def plot_data_in_batches(data_sets, batch_size, file_prefix="batch", save_path="
 
                     # 标注点的文本信息
                     if annotation_counter >= batch_size:
-                        plt.tex_t(data.index[k - 1], data['latLaneCenterOffset'].iloc[k - 1], str(annotation_counter),
-                                 color='black', ha='center', va='center')
+                        plt.text(data.index[k - 1], data['latLaneCenterOffset'].iloc[k - 1], str(annotation_counter),
+                                  color='black', ha='center', va='center')
                     annotation_counter += 1  # 更新计数器
 
         # 添加图例
@@ -136,7 +153,7 @@ def plot_data_in_batches(data_sets, batch_size, file_prefix="batch", save_path="
                     # 标注点的文本信息
                     if annotation_counter >= remainder:
                         plt.tex_t(data.index[k - 1], data['latLaneCenterOffset'].iloc[k - 1], str(annotation_counter),
-                                 color='black', ha='center', va='center')
+                                  color='black', ha='center', va='center')
                     annotation_counter += 1  # 更新计数器
 
         # 添加图例
@@ -197,7 +214,7 @@ def ellipses_tangent_time(a1, b1, theta1, x1, y1, vx, vy, a2, b2, theta2, x2, y2
             return [eq1, eq2]
 
         # 初始猜测点
-        guess = [(x1+x_T)/2.0, (y1+y_T)/2.0]
+        guess = [(x1 + x_T) / 2.0, (y1 + y_T) / 2.0]
 
         # 解方程组
         solution = fsolve(equations, guess, fprime=None, col_deriv=False, maxfev=1000)
@@ -268,7 +285,7 @@ def reload_ellipses_tangent_time(a1, b1, theta1, x1, y1, vx, vy, a2, b2, theta2,
             return [eq1, eq2]
 
         # 初始猜测点
-        guess = [(x1+x_T)/2.0, (y1+y_T)/2.0]
+        guess = [(x1 + x_T) / 2.0, (y1 + y_T) / 2.0]
 
         # 解方程组
         solution = fsolve(equations, guess)
@@ -304,4 +321,3 @@ def reload_ellipses_tangent_time(a1, b1, theta1, x1, y1, vx, vy, a2, b2, theta2,
         return best_t, xt, yt
     else:
         return None, None, None
-
