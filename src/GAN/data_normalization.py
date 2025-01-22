@@ -7,6 +7,7 @@ import os
 import pandas as pd
 from loguru import logger
 import numpy as np
+from src.figure.TTC_acc_figure import create_output_folder
 recordingMapToLocation = {
     "2": list(range(39, 53)),
     "3": list(range(53, 61)),
@@ -38,12 +39,12 @@ def compute_global_stats(dataframes, feature_columns):
 
 def custom_normalize_ttc(ttc_values):
     """
-    自定义归一化公式：exp(-x)。
+    自定义归一化公式：1-2/pi*arctan(x)。
     """
 
     # 将负值转换为999
     ttc_values = np.where(ttc_values < 0, 999, ttc_values)
-    return np.exp(-ttc_values)
+    return 1-2/np.pi*np.arctan(ttc_values)
 
 
 def process_group_data(folder_path, group_files, feature_columns, ttc_columns, output_folder=None):
@@ -72,20 +73,20 @@ def process_group_data(folder_path, group_files, feature_columns, ttc_columns, o
         logger.debug(f"已处理文件: {output_path}")
 
 
-def main(folder_path, recording_map, feature_columns, ttc_columns, output_folder=None):
+def main(folder_path, recording_map, feature_columns, ttc_columns, path=None, folder=None):
     """
     主函数：按 recordingId 对 CSV 文件分组，并对每组数据执行标准化和归一化。
     """
     # 创建输出文件夹
-    if output_folder and not os.path.exists(output_folder):
-        os.makedirs(output_folder)
-
+    create_output_folder(path, folder)
+    max_length = 0
     # 获取文件列表并按分组分类
     group_files = {group: [] for group in recording_map.keys()}
     for file_name in os.listdir(folder_path):
         if file_name.endswith('.csv'):
             file_path = os.path.join(folder_path, file_name)
             df = pd.read_csv(file_path)
+            max_length = max(len(df), max_length)
             recording_id = int(df['recordingId'].iloc[0])  # 假设 recordingId 在每个文件中固定
 
             group = get_group(recording_id, recording_map)
@@ -97,15 +98,17 @@ def main(folder_path, recording_map, feature_columns, ttc_columns, output_folder
         logger.info(f"处理分组: {group}, 文件数量: {len(files)}")
         process_group_data(folder_path, files, feature_columns, ttc_columns, output_folder)
 
+    logger.info(f"Max length is {max_length}.")
 
 if __name__ == "__main__":
     # 主函数调用示例
     rootPath = os.path.abspath('../../')
     assetPath = rootPath + "/asset/"
     folder_path = assetPath + "/extracted_data/"
+    output_name = "normalized_data"
     output_folder = assetPath + "/normalized_data/"  # 如果覆盖原文件，将此参数设为None
     feature_columns = ['traveledDistance', 'latLaneCenterOffset', 'heading', 'lonVelocity', 'lonAcceleration', 'latAcceleration']
     ttc_columns = ['RearTTCRaw3', 'LeadTTCRaw3', 'LeftRearTTCRaw3', 'LeftLeadTTCRaw3', 'LeftAlongsideTTCRaw3']
 
     # 第二步：对数据进行标准化和归一化
-    main(folder_path, recordingMapToLocation, feature_columns, ttc_columns, output_folder)
+    main(folder_path, recordingMapToLocation, feature_columns, ttc_columns, assetPath, output_name)
