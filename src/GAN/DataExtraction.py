@@ -24,19 +24,19 @@ columns_to_check = ['RearTTCRaw3', 'LeadTTCRaw3']
 
 value_range = [0, 3]
 
-target_length = 50
+target_length = 421
 
 
-def uniform_sampling(data, target_length=target_length):
-    """
-    等间隔抽取数据使其变为目标长度。
-
-    :param data: 原始数据，类型为 numpy 数组或 Pandas DataFrame。
-    :param target_length: 抽取后的目标长度。
-    :return: 抽取后的数据，类型与输入一致。
-    """
-    indices = np.linspace(0, len(data) - 1, target_length, dtype=int)  # 生成等间隔索引
-    return data.iloc[indices]
+# def uniform_sampling(data, target_length=target_length):
+#     """
+#     等间隔抽取数据使其变为目标长度。
+#
+#     :param data: 原始数据，类型为 numpy 数组或 Pandas DataFrame。
+#     :param target_length: 抽取后的目标长度。
+#     :return: 抽取后的数据，类型与输入一致。
+#     """
+#     indices = np.linspace(0, len(data) - 1, target_length, dtype=int)  # 生成等间隔索引
+#     return data.iloc[indices]
 
 
 def main():
@@ -59,26 +59,25 @@ def main():
         if not condition_met:
             continue
 
-        result = uniform_sampling(df)
-        result.to_csv(outputPath+file)
+        df.to_csv(outputPath+file)
         logger.info(f"Extracted single trajectory has been saved.")
 
         # 处理TTCRaw3列，当值小于0时设为999
-        result.loc[:, ttc_columns] = result.loc[:, ttc_columns].applymap(lambda x: 999 if x < 0 else x)
+        df.loc[:, ttc_columns] = df.loc[:, ttc_columns].applymap(lambda x: 999 if x < 0 else x)
 
-        record = result[id_columns].iloc[0].tolist()
+        record = df[id_columns].iloc[0].tolist()
 
         for col in input_columns:
-            record.extend(result[col].iloc[:50].tolist())
+            record.extend(df[col].iloc[:50].tolist())
 
         compress_data.append(record)
 
-    # 构建总体的DataFrame
-    compressed_columns = id_columns
-    for col in input_columns:
-        compressed_columns.extend([f"{col}_{i + 1}" for i in range(target_length)])
-    compressed_df = pd.DataFrame(compress_data, columns=compressed_columns)
-    compressed_df.to_csv(assetPath+"compressed_data.csv")
+    # # 构建总体的DataFrame
+    # compressed_columns = id_columns
+    # for col in input_columns:
+    #     compressed_columns.extend([f"{col}_{i + 1}" for i in range(target_length)])
+    # compressed_df = pd.DataFrame(compress_data, columns=compressed_columns)
+    # compressed_df.to_csv(assetPath+"compressed_data.csv")
 
 
 if __name__ == '__main__':
