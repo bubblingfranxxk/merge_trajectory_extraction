@@ -7,18 +7,19 @@
 import os
 import pandas as pd
 import numpy as np
-from scipy.stats import entropy
-from loguru  import logger
+from loguru import logger
+from utils.common import JS_div
 
-def compute_js_divergence(p, q):
-    """计算两个概率分布 p 和 q 的 JS 散度"""
-    p = np.asarray(p)
-    q = np.asarray(q)
-    # 平均分布
-    m = 0.5 * (p + q)
-    # 计算 JS 散度
-    js_divergence = 0.5 * (entropy(p, m) + entropy(q, m))
-    return js_divergence
+
+# def compute_js_divergence(p, q):
+#     """计算两个概率分布 p 和 q 的 JS 散度"""
+#     p = np.asarray(p)
+#     q = np.asarray(q)
+#     # 平均分布
+#     m = 0.5 * (p + q)
+#     # 计算 JS 散度
+#     js_divergence = 0.5 * (entropy(p, m) + entropy(q, m))
+#     return js_divergence
 
 
 def load_folder_data(folder_path, feature_columns):
@@ -41,10 +42,10 @@ def load_folder_data(folder_path, feature_columns):
         return pd.DataFrame()
 
 
-def calculate_histogram(data, bins):
-    """计算连续数据的归一化直方图作为概率分布"""
-    hist, bin_edges = np.histogram(data, bins=bins, density=True)
-    return hist, bin_edges
+# def calculate_histogram(data, bins):
+#     """计算连续数据的归一化直方图作为概率分布"""
+#     hist, bin_edges = np.histogram(data, bins=bins, density=True)
+#     return hist, bin_edges
 
 
 def calculate_js_divergences(real_file, fake_folder, feature_columns, output_file, bins=50):
@@ -55,11 +56,11 @@ def calculate_js_divergences(real_file, fake_folder, feature_columns, output_fil
         logger.error("Error: real_data is empty or does not contain the specified feature_columns.")
         return
 
-    # 计算真实数据的分布（直方图）
-    real_distributions = {
-        column: calculate_histogram(real_data[column], bins=bins)
-        for column in feature_columns
-    }
+    # # 计算真实数据的分布（直方图）
+    # real_distributions = {
+    #     column: calculate_histogram(real_data[column], bins=bins)
+    #     for column in feature_columns
+    # }
 
     js_results = []
 
@@ -78,19 +79,23 @@ def calculate_js_divergences(real_file, fake_folder, feature_columns, output_fil
             # 计算每个特征的 JS 散度
             js_for_epoch = {"epoch": epoch}
             for column in feature_columns:
-                # 计算假数据的分布（直方图）
-                fake_hist, _ = calculate_histogram(fake_data[column], bins=bins)
+                # # 计算假数据的分布（直方图）
+                # fake_hist, _ = calculate_histogram(fake_data[column], bins=bins)
+                #
+                # # 获取真实数据的分布
+                # real_hist, bin_edges = real_distributions[column]
 
-                # 获取真实数据的分布
-                real_hist, bin_edges = real_distributions[column]
-
-                # 对齐直方图（假设 bin_edges 一致）
-                if len(real_hist) != len(fake_hist):
-                    logger.warning(f"Warning: Bin mismatch for feature {column} at epoch {epoch}.")
-                    continue
+                # # 对齐直方图（假设 bin_edges 一致）
+                # if len(real_hist) != len(fake_hist):
+                #     logger.warning(f"Warning: Bin mismatch for feature {column} at epoch {epoch}.")
+                #     continue
 
                 # 计算 JS 散度
-                js_divergence = compute_js_divergence(real_hist, fake_hist)
+                # js_divergence = compute_js_divergence(real_hist, fake_hist)
+                js_divergence = JS_div(real_data[column].values, fake_data[column].values,
+                                       bins,
+                                       min(min(real_data[column]), min(fake_data[column])),
+                                       max(max(real_data[column]), max(fake_data[column])))
                 js_for_epoch[column] = js_divergence
 
             js_results.append(js_for_epoch)
@@ -103,13 +108,14 @@ def calculate_js_divergences(real_file, fake_folder, feature_columns, output_fil
 
 
 if __name__ == '__main__':
+    logger.info("Start...")
     # 指定文件夹路径和特征列
     rootPath = os.path.abspath('../../')
     assetPath = rootPath + '/asset/'
     real_folder = assetPath + '/normalized_data/'
     fake_folder = assetPath + '/GENERATED_DATA/'
     feature_columns = ['traveledDistance', 'latLaneCenterOffset', 'heading', 'lonVelocity',
-                      'lonAcceleration', 'latAcceleration']  # 替换为实际的特征列
+                       'lonAcceleration', 'latAcceleration']  # 替换为实际的特征列
 
     # 计算 JS 散度
-    calculate_js_divergences(real_folder, fake_folder, feature_columns, assetPath+'JS_DIVERGENCE_RESULT.csv', bins=50)
+    calculate_js_divergences(real_folder, fake_folder, feature_columns, assetPath + 'JS_DIVERGENCE_RESULT.csv', bins=50)
