@@ -59,18 +59,18 @@ def main():
         if not condition_met:
             continue
 
-        df.to_csv(outputPath+file)
-        logger.info(f"Extracted single trajectory has been saved.")
-
         # 处理TTCRaw3列，当值小于0时设为999
         df.loc[:, ttc_columns] = df.loc[:, ttc_columns].applymap(lambda x: 999 if x < 0 else x)
 
-        record = df[id_columns].iloc[0].tolist()
+        df.to_csv(outputPath+file)
+        logger.info(f"Extracted single trajectory has been saved.")
 
-        for col in input_columns:
-            record.extend(df[col].iloc[:50].tolist())
-
-        compress_data.append(record)
+        # record = df[id_columns].iloc[0].tolist()
+        #
+        # for col in input_columns:
+        #     record.extend(df[col].iloc[:50].tolist())
+        #
+        # compress_data.append(record)
 
     # # 构建总体的DataFrame
     # compressed_columns = id_columns
