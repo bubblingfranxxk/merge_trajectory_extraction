@@ -327,7 +327,7 @@ if __name__ == '__main__':
     input_dim = 6  # 输入时间序列的维度
     seq_len = target_length  # 时间序列长度
     d_model = 64  # Transformer 的隐藏维度
-    num_heads = 8  # 多头注意力头的数量
+    num_heads = 16  # 多头注意力头的数量
     num_layers = 2  # Transformer 编码器层数
     hidden_dim = 128  # 判别器的 LSTM 隐藏层维度
     noise_dim = 6  # 生成器输入噪声的维度
@@ -341,7 +341,7 @@ if __name__ == '__main__':
     assetPath = os.path.abspath('../../') + '/asset/'
     create_output_folder(assetPath, 'GENERATED_DATA')
     folder_path = assetPath + "/normalized_data/"  # 替换为你的文件夹路径
-    target_columns = ['traveledDistance', 'latLaneCenterOffset', 'heading', 'lonVelocity',
+    target_columns = ['lonLaneletPos', 'latLaneCenterOffset', 'heading', 'lonVelocity',
                       'lonAcceleration', 'latAcceleration'
                       ]
     # , 'RearTTCRaw3', 'LeadTTCRaw3',
@@ -370,4 +370,4 @@ if __name__ == '__main__':
 
     # 训练 CGAN
     logger.info(f"Model is training...")
-    cgan.train(dataloader, noise_dim, epochs=200)
+    cgan.train(dataloader, noise_dim, epochs=500)
