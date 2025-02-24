@@ -24,9 +24,11 @@ num_bins = 50
 
 
 class TimeSeriesDataset(Dataset):
-    def __init__(self, folder_path, seq_len, output_dim, target_columns, condition_column):
-        self.data, self.condition = load_csv_files_to_tensor(folder_path, seq_len, output_dim, target_columns,
-                                                             condition_column)
+    def __init__(self, folder_path_ego, folder_path_lead, folder_path_rear, seq_len, output_dim, target_columns,
+                 condition_column):
+        self.data, self.condition = load_csv_files_to_tensor(
+            folder_path_ego, folder_path_lead, folder_path_rear, seq_len, output_dim, target_columns, condition_column
+        )
 
     def __len__(self):
         return len(self.data)
@@ -36,7 +38,7 @@ class TimeSeriesDataset(Dataset):
 
 
 class TransformerGenerator(nn.Module):
-    def __init__(self, input_dim, seq_len, d_model, num_heads, num_layers, output_dim, dropout_prob=0.3):
+    def __init__(self, input_dim, seq_len, d_model, num_heads, num_layers, output_dim, dropout_prob=0.1):
         super(TransformerGenerator, self).__init__()
         self.seq_len = seq_len
         self.input_dim = input_dim
@@ -71,7 +73,7 @@ class TransformerGenerator(nn.Module):
 
 # 定义判别器：用于区分真实的时间序列和生成的时间序列
 class Discriminator(nn.Module):
-    def __init__(self, input_dim, seq_len, hidden_dim, num_layers, dropout_prob=0.5):
+    def __init__(self, input_dim, seq_len, hidden_dim, num_layers, dropout_prob=0.1):
         super(Discriminator, self).__init__()
         self.rnn = nn.LSTM(input_dim, hidden_dim, num_layers, batch_first=True, bidirectional=True)
         self.fc = nn.Linear(hidden_dim * 2, 1)  # 双向 LSTM 乘 2
@@ -91,11 +93,12 @@ class Discriminator(nn.Module):
 
 # CGAN 模型：生成器和判别器
 class CGAN:
-    def __init__(self, generator, discriminator, data_columns, feature_columns, gen_lr=1e-7, disc_lr=1e-7):
+    def __init__(self, generator, discriminator, data_columns, feature_columns, result_columns,gen_lr=5e-5, disc_lr=1e-4):
         self.rootPath = os.path.abspath('../../')
         self.assetPath = self.rootPath + "/asset/"
         self.data_columns = data_columns
         self.feature_columns = feature_columns
+        self.result_columns = result_columns
         self.generator = generator
         self.discriminator = discriminator
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -103,12 +106,16 @@ class CGAN:
         self.generator.to(self.device)
         self.discriminator.to(self.device)
         self.epoch = 0
-        self.interval = 1
+        self.interval = 10
 
         # 优化器和损失函数
         self.optim_G = optim.Adam(self.generator.parameters(), lr=gen_lr)
-        self.optim_D = optim.Adam(self.discriminator.parameters(), lr=disc_lr, weight_decay=1e-4)
+        self.optim_D = optim.Adam(self.discriminator.parameters(), lr=disc_lr)
         self.criterion = nn.BCELoss()
+
+        # 添加学习率调度器：每100个epoch，学习率降低一半
+        self.scheduler_G = optim.lr_scheduler.StepLR(self.optim_G, step_size=100, gamma=0.5)
+        self.scheduler_D = optim.lr_scheduler.StepLR(self.optim_D, step_size=50, gamma=0.5)
 
     def save_losses_to_csv(self, epoch, d_loss, g_loss, csv_file="losses.csv"):
         """保存损失值到 CSV 文件"""
@@ -126,8 +133,9 @@ class CGAN:
         condition_file = os.path.join(output_folder, f"condition_epoch_{epoch}.csv")
 
         # 保存 fake_data
+        # logger.debug(f"fake data shape:{fake_data.detach().shape}")
         fake_df = pd.DataFrame(fake_data.detach().cpu().numpy().reshape(-1, fake_data.shape[-1]),
-                               columns=feature_columns)
+                               columns=self.result_columns)
         fake_df.to_csv(fake_data_file, index=False)
 
         # 保存 condition
@@ -205,6 +213,9 @@ class CGAN:
                 # 判别器反向传播
                 self.optim_D.zero_grad()
                 disc_loss.backward()
+
+                # 判别器梯度裁剪
+                torch.nn.utils.clip_grad_norm_(self.discriminator.parameters(), max_norm=1.0)
                 self.optim_D.step()
 
                 # 训练生成器
@@ -225,113 +236,165 @@ class CGAN:
 
                 # 将 JS 散度作为惩罚项加到生成器损失中
                 # logger.debug(gen_js_divergence / fake_data.size(2))
-                gen_loss += gen_js_divergence / fake_data.size(2)  # 将 JS 散度加到生成器的损失中
+                gen_loss += 10 * gen_js_divergence / fake_data.size(2)  # 将 JS 散度加到生成器的损失中
 
                 # 生成器反向传播
                 self.optim_G.zero_grad()
                 gen_loss.backward()
+
+                # 生成器梯度裁剪
+                torch.nn.utils.clip_grad_norm_(self.generator.parameters(), max_norm=1.0)
                 self.optim_G.step()
 
-                if save_available:
-                    # 保存每个 batch 的 fake_data 和 condition
-                    all_fake_data.append(fake_data.detach().cpu())
-                    all_conditions.append(condition.detach().cpu())
+                # 在训练循环中打印梯度范数
+                # logger.info("G grad:")
+                # for name, param in self.generator.named_parameters():
+                #     if param.grad is not None:
+                #         logger.debug(f"Generator {name} grad norm: {param.grad.norm().item()}")
+                #
+                # logger.info("D grad:")
+                # for name, param in self.discriminator.named_parameters():
+                #     if param.grad is not None:
+                #         logger.debug(f"Discriminator {name} grad norm: {param.grad.norm().item()}")
+
+            # 每个epoch结束后更新学习率
+            self.scheduler_G.step()
+            self.scheduler_D.step()
+
+                # if save_available:
+                #     # 保存每个 batch 的 fake_data 和 condition
+                #     all_fake_data.append(fake_data.detach().cpu())
+                #     all_conditions.append(condition.detach().cpu())
 
             if epoch % self.interval == 0:
-                # 将保存的列表转换为张量
-                all_fake_data = torch.cat(all_fake_data, dim=0)  # 拼接所有的 batch
-                all_conditions = torch.cat(all_conditions, dim=0)
-                self.epoch = epoch
-                # 保存损失值到 CSV
-                self.save_losses_to_csv(epoch, disc_loss.item(), gen_loss.item(),
-                                        csv_file=self.assetPath + "losses.csv")
+                # # 将保存的列表转换为张量
+                # all_fake_data = torch.cat(all_fake_data, dim=0)  # 拼接所有的 batch
+                # all_conditions = torch.cat(all_conditions, dim=0)
+                # self.epoch = epoch
+                # # 保存损失值到 CSV
+                # self.save_losses_to_csv(epoch, disc_loss.item(), gen_loss.item(),
+                #                         csv_file=self.assetPath + "losses.csv")
+                #
+                # # 保存生成数据到 CSV
+                # self.save_fake_data_to_csv(all_fake_data, all_conditions, epoch, self.data_columns,
+                #                            output_folder=self.assetPath + "/GENERATED_DATA/")
+                #
+                # # 绘制特征分布
+                # self.plot_feature_distributions(all_fake_data, self.feature_columns,
+                #                                 output_folder=self.assetPath + "/GENERATED_DATA/")
 
-                # 保存生成数据到 CSV
-                self.save_fake_data_to_csv(all_fake_data, all_conditions, epoch, self.data_columns,
-                                           output_folder=self.assetPath + "/GENERATED_DATA/")
-
-                # 绘制特征分布
-                self.plot_feature_distributions(all_fake_data, self.feature_columns,
-                                                output_folder=self.assetPath + "/GENERATED_DATA/")
-
-                logger.info(f"Epoch [{epoch}/{epochs}] | D Loss: {disc_loss.item()} | G Loss: {gen_loss.item()}")
+                logger.info(f"Epoch [{epoch}/{epochs}] | D Loss: {disc_loss.item()} | G Loss: {gen_loss.item()}"
+                            f" | JS Dive: {gen_js_divergence / fake_data.size(2)}")
 
 
-def load_csv_files_to_tensor(folder_path, seq_len, output_dim, target_columns, condition_column):
+def load_csv_files_to_tensor(folder_path_ego, folder_path_lead, folder_path_rear, seq_len, output_dim, target_columns,
+                             condition_column):
     # 用于存储读取后的数据
     data_list = []
     condition_list = []
     # 定义字符到数字的映射字典
     merging_type_mapping = {'A': 0, 'B': 1, 'C': 2, 'D': 3, 'E': 4, 'F': 5, 'G': 6, 'H': 7}
 
-    # 遍历文件夹中的所有CSV文件
-    for file_name in os.listdir(folder_path):
-        if file_name.endswith('.csv'):
-            file_path = os.path.join(folder_path, file_name)
-            df = pd.read_csv(file_path)
-            # logger.info(f"{file_name} is processing...")
+    # 遍历自车文件夹中的所有文件
+    for ego_file in os.listdir(folder_path_ego):
+        if not ego_file.endswith('.csv'):
+            continue
 
-            # 提取目标列并确保列顺序正确
-            if not set(target_columns).issubset(df.columns):
-                raise ValueError(f"文件 {file_name} 中缺少指定的目标列 {target_columns}")
-            if condition_column not in df.columns:
-                raise ValueError(f"文件 {file_name} 中缺少指定的条件列 {condition_column}")
+        # 解析自车文件名中的场景ID (前两部分)
+        parts = ego_file.split('_')
+        if len(parts) < 3:
+            continue  # 跳过不符合命名规则的文件
+        scene_id = f"{parts[0]}_{parts[1]}"  # 例如 "39_65"
 
-            selected_data = df[target_columns].values
-            # 填充数据使其长度为 seq_len
-            if selected_data.shape[0] < seq_len:
-                # 填充缺少的部分（填充为零或其他适当的值）
-                padding_length = seq_len - selected_data.shape[0]
-                padding_data = np.zeros((padding_length, selected_data.shape[1]))  # 填充为零
-                selected_data = np.vstack([selected_data, padding_data])  # 拼接填充的数据
+        # 构建前车和后车文件名
+        lead_file = f"{scene_id}_leadId_trajectory.csv"
+        rear_file = f"{scene_id}_rearId_trajectory.csv"
 
-            # 确保数据可以被整除成 seq_len 长度的子序列
-            num_sequences = selected_data.shape[0] // seq_len
-            # logger.info(f"num sequence is {num_sequences}.")
-            truncated_data = selected_data[:num_sequences * seq_len]
+        # 加载自车数据
+        ego_path = os.path.join(folder_path_ego, ego_file)
+        ego_df = pd.read_csv(ego_path)
+        if not set(target_columns).issubset(ego_df.columns):
+            raise ValueError(f"自车文件 {ego_file} 缺少目标列 {target_columns}")
+        if condition_column not in ego_df.columns:
+            raise ValueError(f"自车文件 {ego_file} 缺少条件列 {condition_column}")
 
-            # 重塑为 [batch_size, seq_len, output_dim] 格式
-            reshaped_data = truncated_data.reshape(num_sequences, seq_len, output_dim)
-            data_list.append(reshaped_data)
+        # 提取自车数据和条件
+        ego_data = ego_df[target_columns].values
 
-            # 处理条件数据
-            condition_data = df[condition_column].map(merging_type_mapping).values
+        # 强制自车数据长度为 seq_len
+        if ego_data.shape[0] < seq_len:
+            # 填充零
+            padding = np.zeros((seq_len - ego_data.shape[0], ego_data.shape[1]))
+            ego_data = np.vstack([ego_data, padding])
+        else:
+            # 截断到 seq_len
+            ego_data = ego_data[:seq_len]
 
-            # 填充 condition_data 使其长度为 seq_len
-            if condition_data.shape[0] < seq_len:
-                # 使用最后一个有效值填充 condition_data
-                padding_length = seq_len - condition_data.shape[0]
-                last_condition_value = condition_data[-1]  # 取最后一个条件值进行填充
-                padding_condition = np.tile(last_condition_value, padding_length)  # 填充为最后一个条件值
-                condition_data = np.concatenate([condition_data, padding_condition])  # 拼接填充的数据
+        # 加载前车数据（如果存在）
+        lead_path = os.path.join(folder_path_lead, lead_file)
+        if os.path.exists(lead_path):
+            lead_df = pd.read_csv(lead_path)
+            lead_data = lead_df[target_columns].values
+            # 强制前车数据长度为 seq_len
+            if lead_data.shape[0] < seq_len:
+                padding = np.zeros((seq_len - lead_data.shape[0], lead_data.shape[1]))
+                lead_data = np.vstack([lead_data, padding])
+            else:
+                lead_data = lead_data[:seq_len]
+        else:
+            # 生成全零数据（长度直接为 seq_len）
+            lead_data = np.zeros((seq_len, len(target_columns)))
 
-            # 确保 condition_data 也可以被整除成 seq_len 长度的子序列
-            truncated_condition = condition_data[:num_sequences * seq_len]
-            reshaped_condition = truncated_condition.reshape(num_sequences, seq_len, 1)  # [batch_size, seq_len, 1]
-            condition_list.append(reshaped_condition)
+        # 加载后车数据（如果存在）
+        rear_path = os.path.join(folder_path_rear, rear_file)
+        if os.path.exists(rear_path):
+            rear_df = pd.read_csv(rear_path)
+            if not set(target_columns).issubset(rear_df.columns):
+                raise ValueError(f"后车文件 {rear_file} 缺少目标列 {target_columns}")
+            rear_data = rear_df[target_columns].values
+        else:
+            # 用零矩阵替代缺失的后车数据
+            rear_data = np.zeros((seq_len, len(target_columns)))
 
-    # 合并所有数据并转换为 Tensor
-    combined_data = np.concatenate(data_list, axis=0)
-    combined_condition = np.concatenate(condition_list, axis=0)
+        # 合并三类数据（按特征维度）
+        combined_data = np.hstack([ego_data, lead_data, rear_data])
+        # logger.debug(f"combined data shape:{combined_data.shape}")
 
-    real_data = torch.tensor(combined_data, dtype=torch.float32)
-    condition = torch.tensor(combined_condition, dtype=torch.float32)
+        # 填充条件数据到 seq_len（用最后一个值填充）
+        condition_data = ego_df[condition_column].map(merging_type_mapping).values
+        if len(condition_data) < seq_len:
+            condition_data = np.concatenate([
+                condition_data,
+                np.full(seq_len - len(condition_data), condition_data[-1])
+            ])
+        else:
+            condition_data = condition_data[:seq_len]
+        # logger.debug(f"conditional data shape{condition_data.shape}")
+
+        # 添加到列表
+        data_list.append(torch.tensor(combined_data, dtype=torch.float32))
+        condition_list.append(torch.tensor(condition_data, dtype=torch.float32))
+
+    # 合并所有场景数据
+    real_data = torch.stack(data_list, dim=0)  # [batch_size, seq_len, output_dim]
+    condition = torch.stack(condition_list, dim=0).unsqueeze(-1)  # [batch_size, seq_len, 1]
 
     return real_data, condition
+    # 遍历文件夹中的所有CSV文件
 
 
 if __name__ == '__main__':
     logger.warning(f"cuda available: {torch.cuda.is_available()}.")
 
     # 参数定义
-    input_dim = 6  # 输入时间序列的维度
+    input_dim = 6 * 3  # 输入时间序列的维度
     seq_len = target_length  # 时间序列长度
     d_model = 64  # Transformer 的隐藏维度
-    num_heads = 16  # 多头注意力头的数量
-    num_layers = 2  # Transformer 编码器层数
+    num_heads = 32  # 多头注意力头的数量
+    num_layers = 4  # Transformer 编码器层数
     hidden_dim = 128  # 判别器的 LSTM 隐藏层维度
-    noise_dim = 6  # 生成器输入噪声的维度
-    output_dim = 6  # 生成的时间序列维度
+    noise_dim = 6 * 3  # 生成器输入噪声的维度
+    output_dim = 6 * 3  # 生成的时间序列维度
     condition_dim = 1  # 条件维度，例如特征、标签等
 
     batch_size = 64
@@ -340,16 +403,34 @@ if __name__ == '__main__':
     logger.info(f"Inputing data...")
     assetPath = os.path.abspath('../../') + '/asset/'
     create_output_folder(assetPath, 'GENERATED_DATA')
-    folder_path = assetPath + "/normalized_data/"  # 替换为你的文件夹路径
+    # 定义三个文件夹路径（本车、前车、后车）
+    folder_path_ego = assetPath + "/normalized_data/"  # 本车数据路径
+    folder_path_lead = assetPath + "/normalized_data/lead/"  # 前车数据路径
+    folder_path_rear = assetPath + "/normalized_data/rear/"  # 后车数据路径
     target_columns = ['lonLaneletPos', 'latLaneCenterOffset', 'heading', 'lonVelocity',
                       'lonAcceleration', 'latAcceleration'
+                      ]
+    result_columns = ['ego_lonLaneletPos', 'ego_latLaneCenterOffset', 'ego_heading', 'ego_lonVelocity',
+                      'ego_lonAcceleration', 'ego_latAcceleration', 'lead_lonLaneletPos', 'lead_latLaneCenterOffset',
+                      'lead_heading', 'lead_lonVelocity', 'lead_lonAcceleration', 'lead_latAcceleration',
+                      'rear_lonLaneletPos', 'rear_latLaneCenterOffset',
+                      'rear_heading', 'rear_lonVelocity', 'rear_lonAcceleration', 'rear_latAcceleration'
                       ]
     # , 'RearTTCRaw3', 'LeadTTCRaw3',
     # 'LeftRearTTCRaw3', 'LeftLeadTTCRaw3', 'LeftAlongsideTTCRaw3']
     features = ['lonVelocity', 'lonAcceleration', 'latAcceleration']
     condition_column = 'MergingType'
 
-    dataset = TimeSeriesDataset(folder_path, seq_len, output_dim, target_columns, condition_column)
+
+    dataset = TimeSeriesDataset(
+        folder_path_ego,
+        folder_path_lead,
+        folder_path_rear,
+        seq_len,
+        output_dim,
+        target_columns,
+        condition_column
+    )
     dataloader = DataLoader(dataset, batch_size=batch_size)
 
     # 初始化生成器和判别器
@@ -359,7 +440,7 @@ if __name__ == '__main__':
 
     # 初始化 CGAN
     logger.info(f"Initialize CGAN model.")
-    cgan = CGAN(generator, discriminator, target_columns, features)
+    cgan = CGAN(generator, discriminator, target_columns, features, result_columns)
 
     # 生成随机时间序列数据和条件
     # real_data = torch.randn(32, seq_len, output_dim)  # [batch_size, seq_len, output_dim]
@@ -370,4 +451,4 @@ if __name__ == '__main__':
 
     # 训练 CGAN
     logger.info(f"Model is training...")
-    cgan.train(dataloader, noise_dim, epochs=500)
+    cgan.train(dataloader, noise_dim, epochs=200)
