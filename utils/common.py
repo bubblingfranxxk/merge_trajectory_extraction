@@ -8,38 +8,20 @@ from scipy.optimize import fsolve
 import scipy
 
 
+# JS散度公式
 def JS_divergence(p, q):
     M = (p + q) / 2
     return 0.5 * scipy.stats.entropy(p, M, base=2) + 0.5 * scipy.stats.entropy(q, M, base=2)
 
 
-def JS_div(arr1, arr2, num_bins, min0=None, max0=None):
-    # 自动确定范围以避免截断数据
-    min_val = min(np.min(arr1), np.min(arr2)) if min0 is None else min0
-    max_val = max(np.max(arr1), np.max(arr2)) if max0 is None else max0
-
-    # 生成num_bins+1个分割点以创建num_bins个区间
-    bins = np.linspace(min_val, max_val, num=num_bins + 1)
-
-    # 使用左闭右开区间并确保包含最小值
-    counts1 = pd.cut(arr1, bins=bins, right=False, include_lowest=True).value_counts().sort_index()
-    counts2 = pd.cut(arr2, bins=bins, right=False, include_lowest=True).value_counts().sort_index()
-
-    # 拉普拉斯平滑避免零概率
-    epsilon = 1e-10
-    counts1 = counts1 + epsilon
-    counts2 = counts2 + epsilon
-
-    # 计算概率分布
-    PDF1 = counts1 / counts1.sum()
-    PDF2 = counts2 / counts2.sum()
-
-    # 确保两分布长度一致（理论上应相同，但检查以防万一）
-    if len(PDF1) != len(PDF2):
-        raise ValueError("PDF1和PDF2的bin数量不一致，请检查分箱过程。")
-
-    js = JS_divergence(PDF1.values, PDF2.values)
-    return min(js, 1.0)  # 数值稳定性处理
+def JS_div(arr1, arr2, num_bins, min0, max0):
+    arr1 += 1e-10
+    arr2 += 1e-10
+    bins = np.linspace(min0, max0, num=num_bins)
+    PDF1 = pd.cut(arr1, bins, duplicates="drop").value_counts() / len(arr1)
+    PDF2 = pd.cut(arr2, bins, duplicates="drop").value_counts() / len(arr2)
+    #    return min(JS_divergence(PDF1.values,PDF2.values),1)
+    return JS_divergence(PDF1.values, PDF2.values)
 
 
 # 变道筛选/过滤 把两次压线间隔小于1s的变道删掉前者，看作1次变道
