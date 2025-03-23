@@ -11,8 +11,11 @@ from src.figure.TTC_acc_figure import create_output_folder
 import json
 
 recordingMapToLocation = {
+    "0": list(range(19)),
+    "1": list(range(19, 39)),
     "2": list(range(39, 53)),
     "3": list(range(53, 61)),
+    "4": list(range(61, 73)),
     "5": list(range(73, 78)),
     "6": list(range(78, 93))
 }
