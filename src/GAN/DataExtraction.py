@@ -20,7 +20,8 @@ input_columns = ['traveledDistance', 'latLaneCenterOffset', 'heading', 'lonVeloc
 
 ttc_columns = ['RearTTCRaw3', 'LeadTTCRaw3', 'LeftRearTTCRaw3', 'LeftLeadTTCRaw3', 'LeftAlongsideTTCRaw3']
 
-columns_to_check = ['RearTTCRaw3', 'LeadTTCRaw3']
+columns_to_check = ['RearTTCRaw1', 'LeadTTCRaw1', 'LeftRearTTCRaw1', 'LeftLeadTTCRaw1', 'LeftAlongsideTTCRaw1',
+                    'RearTTCRaw2', 'LeadTTCRaw2', 'LeftRearTTCRaw2', 'LeftLeadTTCRaw2', 'LeftAlongsideTTCRaw2']
 
 value_range = [0, 3]
 
@@ -61,6 +62,8 @@ def main():
 
         # 处理TTCRaw3列，当值小于0时设为999
         df.loc[:, ttc_columns] = df.loc[:, ttc_columns].applymap(lambda x: 999 if x < 0 else x)
+        # 处理heading列，将接近0的值转换为360度以上的值
+        df['heading'] = df['heading'].apply(lambda x: x+360 if x < 180 else x)
 
         df.to_csv(outputPath+file)
         logger.info(f"Extracted single trajectory has been saved.")
