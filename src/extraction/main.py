@@ -13,6 +13,7 @@ from loguru import logger
 from src.extraction.mergingExtractionClass import MergingExtractionClass
 from src.extraction.mergingPointClass import MergingPointClass
 from src.extraction.matchMergingScenarioClass import matchScenariosClass
+from src.extraction.multiVehicleExtractionClass import MultiVehicleExtractionClass
 
 
 def createArgs():
@@ -57,8 +58,12 @@ def main():
     # pointExtraction.run()
 
     # 调用matchMergingScenarios，将汇入轨迹与汇入场景进行匹配
-    matchScenarios = matchScenariosClass(config)
-    matchScenarios.run()
+    # matchScenarios = matchScenariosClass(config)
+    # matchScenarios.run()
+
+    # 调用MultiVehicleExtraction，进行多车轨迹提取
+    multiVehicleExtraction = MultiVehicleExtractionClass(config)
+    multiVehicleExtraction.run()
 
 
 if __name__ == '__main__':

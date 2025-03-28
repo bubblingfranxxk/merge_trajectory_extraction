@@ -114,7 +114,7 @@ if __name__ == '__main__':
     assetPath = rootPath + '/asset/'
     real_folder = assetPath + '/normalized_data/'
     fake_folder = assetPath + '/GENERATED_DATA/'
-    feature_columns = ['traveledDistance', 'latLaneCenterOffset', 'heading', 'lonVelocity',
+    feature_columns = ['lonLaneletPos', 'latLaneCenterOffset', 'heading', 'lonVelocity',
                        'lonAcceleration', 'latAcceleration']  # 替换为实际的特征列
 
     # 计算 JS 散度

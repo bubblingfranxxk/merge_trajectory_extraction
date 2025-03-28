@@ -536,7 +536,7 @@ class MergingExtractionClass(object):
             tracks, tracksMeta, recordingMeta = self.readCsvFile("%02d" % record)
             location = str(recordingMeta["locationId"].values[0])
             weekday = recordingMeta["weekday"].values[0]
-            self.HDMdata = laneletID.lanlet2data[location]
+            self.HDMdata = laneletID.lanelet2data[location]
             self.location = location
             self.weekday = weekday
 
