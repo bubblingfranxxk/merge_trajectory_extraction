@@ -1,7 +1,7 @@
 # -*- coding = utf-8 -*-
 # @Time : 2025/2/7 16:23
 # @Author : 王砚轩
-# @File : multiVehicleExtraction.py
+# @File : multiVehicleExtractionClass.py
 # @Software: PyCharm
 import os
 import pandas as pd
@@ -12,7 +12,7 @@ from src.GAN.data_adjust_and_additional_calculation import process_csv_files
 import src.GAN.data_normalization as data_normalization
 
 
-class MultiVehicleExtraction(object):
+class MultiVehicleExtractionClass(object):
     def __init__(self, config):
         # 定义包含CSV文件的文件夹路径
         self.rootPath = os.path.abspath('../../')
@@ -90,6 +90,7 @@ class MultiVehicleExtraction(object):
                 df = otherVehicleTraj[(otherVehicleTraj['trackId'] == vehilceId) &
                                       (otherVehicleTraj['frame'] >= self.minFrame) &
                                       (otherVehicleTraj['frame'] <= self.maxFrame)]
+                df['heading'] = df['heading'].apply(lambda x: x+360 if x < 180 else x)
                 df.to_csv(self.surroundingPath + f'/{label}/{self.recordingId}_{self.trackId}_{label}_trajectory.csv',
                           index=False)
                 # logger.info(f'{self.recordingId}_{self.trackId}_{label} has done.')
