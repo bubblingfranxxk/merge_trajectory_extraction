@@ -48,10 +48,10 @@ def load_folder_data(folder_path, feature_columns):
 #     return hist, bin_edges
 
 
-def calculate_js_divergences(real_file, fake_folder, feature_columns, output_file, bins=50):
+def calculate_js_divergences(real_file, fake_folder, real_feature_columns, feature_columns, output_file, bins=50):
     """计算 real_data 和每个 fake_data_epoch 文件在指定特征上的 JS 散度"""
     # 加载 real_data
-    real_data = load_folder_data(real_file, feature_columns)
+    real_data = load_folder_data(real_file, real_feature_columns)
     if real_data.empty:
         logger.error("Error: real_data is empty or does not contain the specified feature_columns.")
         return
@@ -79,6 +79,7 @@ def calculate_js_divergences(real_file, fake_folder, feature_columns, output_fil
             # 计算每个特征的 JS 散度
             js_for_epoch = {"epoch": epoch}
             for column in feature_columns:
+                real_column = column.split('_')[1]
                 # # 计算假数据的分布（直方图）
                 # fake_hist, _ = calculate_histogram(fake_data[column], bins=bins)
                 #
@@ -92,10 +93,10 @@ def calculate_js_divergences(real_file, fake_folder, feature_columns, output_fil
 
                 # 计算 JS 散度
                 # js_divergence = compute_js_divergence(real_hist, fake_hist)
-                js_divergence = JS_div(real_data[column].values, fake_data[column].values,
+                js_divergence = JS_div(real_data[real_column].values, fake_data[column].values,
                                        bins,
-                                       min(min(real_data[column]), min(fake_data[column])),
-                                       max(max(real_data[column]), max(fake_data[column])))
+                                       min(min(real_data[real_column]), min(fake_data[column])),
+                                       max(max(real_data[real_column]), max(fake_data[column])))
                 js_for_epoch[column] = js_divergence
 
             js_results.append(js_for_epoch)
@@ -104,7 +105,40 @@ def calculate_js_divergences(real_file, fake_folder, feature_columns, output_fil
     if js_results:
         result_df = pd.DataFrame(js_results)
         result_df.to_csv(output_file, index=False)
-        logger.debug(f"JS divergence results saved to {output_file}")
+        logger.info(f"JS divergence results saved to {output_file}")
+
+
+def merge_specified_csv_append_columns(csv_file_list, output_csv):
+    """
+    合并指定的 CSV 文件，将各文件的列依次追加（按列拼接），
+    并且对于非首个 CSV 文件，不将保存时产生的索引列拼接进去。
+
+    参数:
+      csv_file_list: 包含 CSV 文件完整路径的列表
+      output_csv: 输出合并后 CSV 文件的路径
+    """
+    df_list = []
+
+    # 处理第一个 CSV 文件
+    # 直接读取，然后重置索引确保行号对齐
+    first_df = pd.read_csv(csv_file_list[0])
+    first_df.reset_index(drop=True, inplace=True)
+    df_list.append(first_df)
+
+    # 处理非首个 CSV 文件
+    for file in csv_file_list[1:]:
+        # 如果 CSV 文件保存时包含索引（通常生成列名为 "Unnamed: 0"），
+        # 则用 index_col=0 读取，忽略该索引列
+        df = pd.read_csv(file, index_col=0)
+        # 重置索引以确保与第一个 DataFrame 对齐
+        df.reset_index(drop=True, inplace=True)
+        df_list.append(df)
+
+    # 按列拼接
+    merged_df = pd.concat(df_list, axis=1)
+
+    merged_df.to_csv(output_csv, index=False, encoding='utf-8')
+    logger.info(f"合并后的文件保存到：{output_csv}")
 
 
 if __name__ == '__main__':
@@ -112,10 +146,39 @@ if __name__ == '__main__':
     # 指定文件夹路径和特征列
     rootPath = os.path.abspath('../../')
     assetPath = rootPath + '/asset/'
+    generativePath = assetPath \
+                    + '/CGAN/'
     real_folder = assetPath + '/normalized_data/'
-    fake_folder = assetPath + '/GENERATED_DATA/'
-    feature_columns = ['lonLaneletPos', 'latLaneCenterOffset', 'heading', 'lonVelocity',
-                       'lonAcceleration', 'latAcceleration']  # 替换为实际的特征列
+    fake_folder = generativePath + '/GENERATED_DATA/'
+    feature_columns = ['lonLaneletPos', 'latLaneCenterOffset',
+                       'heading',
+                       'lonVelocity',
+                       'lonAcceleration', 'latAcceleration']
+    ego_feature_columns = ['ego_lonLaneletPos', 'ego_latLaneCenterOffset',
+                           'ego_heading',
+                           'ego_lonVelocity',
+                           'ego_lonAcceleration', 'ego_latAcceleration']  # 替换为实际的特征列
+
+    lead_real_folder = assetPath + '/normalization_surrounding/leadId/'
+    rear_real_folder = assetPath + '/normalization_surrounding/rearId/'
+    lead_feature_columns = ['lead_lonLaneletPos', 'lead_latLaneCenterOffset',
+                            'lead_heading',
+                            'lead_lonVelocity',
+                            'lead_lonAcceleration', 'lead_latAcceleration']
+    rear_feature_columns = ['rear_lonLaneletPos', 'rear_latLaneCenterOffset',
+                            'rear_heading',
+                            'rear_lonVelocity',
+                            'rear_lonAcceleration', 'rear_latAcceleration']
 
     # 计算 JS 散度
-    calculate_js_divergences(real_folder, fake_folder, feature_columns, assetPath + 'JS_DIVERGENCE_RESULT.csv', bins=50)
+    calculate_js_divergences(real_folder, fake_folder, feature_columns, ego_feature_columns,
+                             assetPath + 'JS_DIVERGENCE_RESULT_EGO.csv', bins=50)
+    calculate_js_divergences(lead_real_folder, fake_folder, feature_columns, lead_feature_columns,
+                             assetPath + 'JS_DIVERGENCE_RESULT_LEAD.csv', bins=50)
+    calculate_js_divergences(rear_real_folder, fake_folder, feature_columns, rear_feature_columns,
+                             assetPath + 'JS_DIVERGENCE_RESULT_REAR.csv', bins=50)
+
+    merge_list = [f"{assetPath}JS_DIVERGENCE_RESULT_EGO.csv",
+                  f"{assetPath}JS_DIVERGENCE_RESULT_LEAD.csv",
+                  f"{assetPath}JS_DIVERGENCE_RESULT_REAR.csv"]
+    merge_specified_csv_append_columns(merge_list, assetPath + "SUM_JS_DIVERGENCE_RESULT.csv")
