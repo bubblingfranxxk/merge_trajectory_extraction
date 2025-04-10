@@ -61,6 +61,7 @@ def process_csv_files(input_folder_path, output_folder_path):
             try:
                 df['lonLaneletPos'] += df['laneletId'].map(lambda laneletId: lane_length_offsets[str(laneletId)])
             except Exception as e:
+                logger.warning(f"error in {recording_id}")
                 logger.error(e)
                 continue
             # 操作 latLaneCenterOffset 列
