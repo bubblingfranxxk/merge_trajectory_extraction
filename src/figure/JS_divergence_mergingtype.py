@@ -49,11 +49,23 @@ def save_js_to_csv(js_results, merging_types, output_folder):
 
 
 # 绘制热力图
-def plot_js_heatmaps(js_results, merging_types, output_folder):
+def plot_js_heatmaps(js_results, merging_types, output_folder, display_names=None):
     os.makedirs(output_folder, exist_ok=True)
     # 创建一个3x2的子图布局
     fig, axes = plt.subplots(3, 2, figsize=(18, 16))  # 调整整体图像大小
     axes = axes.flatten()  # 将子图数组展平成1D列表，便于遍历
+
+    # ------------ 新增代码：定义列名映射 ------------
+    # 如果没有提供 display_names，默认使用原始列名
+    if display_names is None:
+        display_names = list(js_results.keys())
+    # 创建 {原始列名: 显示列名} 的字典
+    name_mapping = dict(zip(js_results.keys(), display_names))
+    # ---------------------------------------------
+
+    # ------------ 新增代码：计算全局最大JS散度值 ------------
+    global_max = max([matrix.max() for matrix in js_results.values()])
+    # ---------------------------------------------------
 
     for idx, (feature, matrix) in enumerate(js_results.items()):
         ax = axes[idx]
@@ -64,10 +76,13 @@ def plot_js_heatmaps(js_results, merging_types, output_folder):
             annot=True,
             fmt=".4f",
             cmap="viridis",
-            annot_kws={"size": 14},  # 调整单元格内文字大小
+            annot_kws={"size": 14},
+            vmin=0,  # 固定最小值
+            vmax=global_max,  # 固定最大值（全局最大）
             ax=ax
         )
-        ax.set_title(f"JS Divergence for {feature}", fontsize=18)  # 子图标题
+        display_name = name_mapping[feature]
+        ax.set_title(f"JS Divergence for {display_name}", fontsize=18)  # 子图标题
         ax.set_xlabel("Merging Type", fontsize=14)
         ax.set_ylabel("Merging Type", fontsize=14)
         ax.tick_params(axis='x', labelsize=30)  # 调整X轴刻度文字大小
@@ -88,7 +103,7 @@ def plot_js_heatmaps(js_results, merging_types, output_folder):
 
 
 # 主函数
-def main(folder_path, feature_columns, merging_type_col="MergingType", output_folder='output'):
+def main(folder_path, feature_columns, merging_type_col="MergingType", output_folder='output', display_names=None):
     all_data = []
 
     # 遍历文件夹中的CSV文件，合并数据
@@ -106,7 +121,7 @@ def main(folder_path, feature_columns, merging_type_col="MergingType", output_fo
     save_js_to_csv(js_results, merging_types, output_folder)
 
     # 绘制热力图
-    plot_js_heatmaps(js_results, merging_types, output_folder)
+    plot_js_heatmaps(js_results, merging_types, output_folder, display_names)
 
 
 if __name__ == '__main__':
@@ -114,7 +129,14 @@ if __name__ == '__main__':
     rootPath = os.path.abspath('../../')
     assetPath = rootPath + "/asset/"
     folder_path = assetPath + '/normalized_data/'
-    feature_columns = ['traveledDistance', 'latLaneCenterOffset', 'heading', 'lonVelocity',
-                      'lonAcceleration', 'latAcceleration']  # 替换为你的特征列名
+    feature_columns = ['lonLaneletPos', 'latLaneCenterOffset', 'heading', 'lonVelocity',
+                       'lonAcceleration', 'latAcceleration'
+                       ]  # 替换为你的特征列名
+    # 自定义显示名称（绘图时使用）
+    display_names = [
+        'lonPos', 'latPos', 'heading',
+        'velocity', 'lonAcceleration', 'latAcceleration'
+    ]
+
     outputPath = assetPath + '/mergingType_JS/'
-    main(folder_path, feature_columns, output_folder=outputPath)
+    main(folder_path, feature_columns, output_folder=outputPath, display_names=display_names)

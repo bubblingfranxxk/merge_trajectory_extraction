@@ -147,7 +147,7 @@ if __name__ == '__main__':
     rootPath = os.path.abspath('../../')
     assetPath = rootPath + '/asset/'
     generativePath = assetPath \
-                    + '/CGAN/'
+                    + '/GAN/'
     real_folder = assetPath + '/normalized_data/'
     fake_folder = generativePath + '/GENERATED_DATA/'
     feature_columns = ['lonLaneletPos', 'latLaneCenterOffset',
