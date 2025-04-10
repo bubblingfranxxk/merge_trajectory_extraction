@@ -10,19 +10,47 @@ import pandas as pd
 from src.GAN.data_normalization import recordingMapToLocation
 from loguru import logger
 
-def kalman_filter(data, process_variance=1e-5, measurement_variance=0.1):
+
+def kalman_filter(data,
+                  mask=None,
+                  process_variance=1e-10,
+                  measurement_variance=10):
     """
-    对一维时间序列数据进行卡尔曼滤波去噪和平滑处理
-    :param data: 1D numpy 数组
-    :param process_variance: 过程噪声方差
-    :param measurement_variance: 观测噪声方差
-    :return: 平滑后的数组
+    对一维时间序列 data 进行卡尔曼滤波：
+      - mask[k]==1 时，做 predict + update；
+      - mask[k]==0 时，只做 predict，相当于跳过观测更新。
+    初始化时，如果 mask[0]==0，则寻找下一个 mask==1 的索引 k0，
+    并用 data[k0] 作为初始状态；若整个序列都无有效观测，则用 0.0。
+    :param data: 1D numpy 数组，观测值
+    :param mask: 1D numpy 数组，0/1 标记观测是否有效；若为 None，则全部视为有效
+    :return: xhat, 1D numpy 数组，滤波后状态估计
     """
     n = len(data)
+    data = np.asarray(data, dtype=float)
+
+    # 如果没有传 mask，就全部视为有效
+    if mask is None:
+        mask = np.ones(n, dtype=int)
+    else:
+        mask = np.asarray(mask, dtype=int)
+
     xhat = np.zeros(n)  # 状态估计值
     P = np.zeros(n)  # 估计误差协方差
-    xhat[0] = data[0]
+
+    # —— 初始化：寻找第一个有效观测值 ——
+    if mask[0] == 1:
+        xhat[0] = data[0]
+    else:
+        valid_idxs = np.where(mask == 1)[0]
+        if valid_idxs.size > 0:
+            first_valid = valid_idxs[0]
+            xhat[0] = data[first_valid]
+        else:
+            # 全序列无有效观测
+            logger.warning("全序列无有效观测")
+            xhat[0] = 0.0
     P[0] = 1.0
+
     Q = process_variance
     R = measurement_variance
     for k in range(1, n):
@@ -30,10 +58,15 @@ def kalman_filter(data, process_variance=1e-5, measurement_variance=0.1):
         xhat_minus = xhat[k - 1]
         P_minus = P[k - 1] + Q
 
-        # 更新
-        K = P_minus / (P_minus + R)
-        xhat[k] = xhat_minus + K * (data[k] - xhat_minus)
-        P[k] = (1 - K) * P_minus
+        if mask[k] == 1:
+            # —— 更新 ——
+            K = P_minus / (P_minus + R)
+            xhat[k] = xhat_minus + K * (data[k] - xhat_minus)
+            P[k] = (1 - K) * P_minus
+        else:
+            # 跳过观测更新
+            xhat[k] = xhat_minus
+            P[k] = P_minus
     return xhat
 
 
@@ -86,9 +119,9 @@ def get_stats_for_column(col, location_id, ego_stats, lead_stats, rear_stats):
 def process_group(df, location_id, ego_stats, lead_stats, rear_stats):
     """
     对单个分组（矩阵）进行后处理：
-      1. 对除 recordingId 和 trackId 外的各个特征列先进行卡尔曼滤波去噪平滑，
-      2. 根据对应 JSON 文件中（依据列名前缀和 location_id 获取）的均值和标准差进行反标准化处理
-         （若对应值为 null，则跳过反标准化）。
+        1. 对每个特征列（除 recordingId, trackId, mask 列）做卡尔曼滤波，
+         仅在对应的 ego_mask/lead_mask/rear_mask==1 时做观测更新；
+      2. 然后做反标准化。
     :param df: DataFrame，包含 recordingId, trackId 及其它特征列
     :param location_id: 当前组的 location_id
     :param ego_stats: ego 统计信息字典
@@ -97,10 +130,27 @@ def process_group(df, location_id, ego_stats, lead_stats, rear_stats):
     :return: 处理后的 DataFrame
     """
     processed = df.copy()
-    feature_columns = [col for col in df.columns if col not in ["recordingId", "trackId"]]
+    feature_columns = [col for col in df.columns if col not in
+                       ["recordingId", "trackId", "ego_mask", "lead_mask", "rear_mask"]]
     # logger.debug(feature_columns)
     for col in feature_columns:
-        smoothed = kalman_filter(df[col].values)
+        # 根据前缀选取对应的 mask 列
+        if col.startswith("ego_"):
+            mask_arr = df["ego_mask"].values.astype(int)
+        elif col.startswith("lead_"):
+            mask_arr = df["lead_mask"].values.astype(int)
+        elif col.startswith("rear_"):
+            mask_arr = df["rear_mask"].values.astype(int)
+        else:
+            logger.warning("what ! except ego, lead and rear!")
+            # 万一有其它列，就全做观测更新
+            mask_arr = np.ones(len(df), dtype=int)
+
+        # 原始观测
+        obs = df[col].values
+        # 卡尔曼滤波，仅在 mask==1 时更新
+        smoothed = kalman_filter(obs, mask=mask_arr)
+
         stats_for_col = get_stats_for_column(col, location_id, ego_stats, lead_stats, rear_stats)
         # logger.debug(stats_for_col)
         base_col = col.split("_", 1)[-1]
@@ -126,8 +176,8 @@ def modify_based_on_merging_type(df, merging_type):
     :param merging_type: 字符串，例如 "A", "B", "C", "D"
     :return: 修改后的 DataFrame
     """
-    lead_cols = [col for col in df.columns if col.startswith("lead_")]
-    rear_cols = [col for col in df.columns if col.startswith("rear_")]
+    lead_cols = [col for col in df.columns if col.startswith("lead_") and not col.endswith('mask')]
+    rear_cols = [col for col in df.columns if col.startswith("rear_") and not col.endswith('mask')]
     if merging_type == "A":
         df[lead_cols] = 999
         df[rear_cols] = 999
@@ -141,9 +191,9 @@ def modify_based_on_merging_type(df, merging_type):
 def main():
     rootPath = os.path.abspath('../../')
     assetPath = rootPath + '/asset/'
-    g_data = assetPath + '/GENERATED_DATA/'
+    g_data = os.path.join(assetPath, 'GAN', 'GENERATED_DATA')
     # 设置文件路径，可根据需要修改
-    generated_csv = g_data + "fake_data_epoch_199.csv"  # 生成数据的 CSV 文件
+    generated_csv = g_data + "fake_data_epoch_490.csv"  # 生成数据的 CSV 文件
     original_data_folder = assetPath + "/normalized_data/"  # 存储原始单轨迹数据的文件夹，文件名格式如 "39_65_single_trajectory.csv"
     ego_stats_json = original_data_folder + "statistic_data.json"  # 存储均值和标准差的 JSON 文件
     lead_stats_json = assetPath + "/normalization_surrounding/leadId/" + "statistic_data.json"
