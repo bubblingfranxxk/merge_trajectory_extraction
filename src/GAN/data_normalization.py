@@ -35,6 +35,7 @@ def compute_global_stats(dataframes, feature_columns):
     """
     计算指定列的全局均值和标准差。
     """
+    # logger.debug(dataframes)
     combined_data = pd.concat([df[feature_columns] for df in dataframes if set(feature_columns).issubset(df.columns)],
                               axis=0)
     global_mean = combined_data.mean()
@@ -60,7 +61,7 @@ def process_group_data(folder_path, group_files, feature_columns, ttc_columns=No
     # logger.debug(group_files)
     # 加载数据
     dataframes = [pd.read_csv(os.path.join(folder_path, file)) for file in group_files]
-    # logger.debug(dataframes)
+    # logger.debug(f"a: {dataframes}")
 
     # 计算全局统计值
     global_mean, global_std = compute_global_stats(dataframes, feature_columns)
@@ -110,26 +111,32 @@ def main(folder_path, recording_map, feature_columns, ttc_columns=None, path=Non
             group = get_group(recording_id, recording_map)
             if group:
                 group_files[group].append(file_name)
-
+    # logger.debug(f"b: {group_files}")
+    # logger.debug(f"c: {group_data}")
     # logger.debug(group_files.items())
     # 对每个分组执行处理
     for group, files in group_files.items():
+        if len(files) == 0:
+            continue
         logger.info(f"处理分组: {group}, 文件数量: {len(files)}")
         group_data[group]['mean'], group_data[group]['std'] = \
             process_group_data(folder_path, files, feature_columns, ttc_columns, path + f'/{folder}/')
-    # 转换为三级字典
-    nested_dict = {}
-    for keys, values in group_data.items():
-        for key, value in values.items():
-            if isinstance(value, pd.Series):  # 检查是否为 Series
-                nested_dict[key] = value.to_dict()
-            else:
-                nested_dict[key] = value  # 保留非 Series 对象
+    # logger.debug(group_data)
+    # 将 group_data 中的均值和标准差转换为字典，便于保存为 JSON
+    group_data_serializable = {}
+    for group, stats in group_data.items():
+        group_data_serializable[group] = {
+            'mean': stats['mean'].to_dict() if stats['mean'] is not None else None,
+            'std': stats['std'].to_dict() if stats['std'] is not None else None
+        }
 
-    logger.debug(nested_dict)
+    # 保存为 JSON 文件，文件名为 statistic_data.json
     json_name = 'statistic_data.json'
-    with open(path + f'/{folder}/{json_name}', 'w') as f:
-        json.dump(nested_dict, f, indent=4)
+    json_path = os.path.join(path, folder, json_name)
+    # logger.debug(json_path)
+    with open(json_path, 'w', encoding='utf-8') as f:
+        json.dump(group_data_serializable, f, indent=4)
+    logger.info(f"已保存全局统计数据到: {json_path}")
     logger.info(f"Max length is {max_length}.")
 
 
